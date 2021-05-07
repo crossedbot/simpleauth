@@ -170,3 +170,20 @@ func RefreshToken(w http.ResponseWriter, r *http.Request, p server.Parameters) {
 	}
 	server.JsonResponse(w, &refreshedToken, http.StatusOK)
 }
+
+func GetJwk(w http.ResponseWriter, r *http.Request, p server.Parameters) {
+	jwks, err := V1().GetJwks()
+	if err != nil {
+		logger.Error(err)
+		server.JsonResponse(
+			w,
+			models.Error{
+				Code:    models.ErrProcessingRequestCode,
+				Message: fmt.Sprintf("Failed to retrieve jwk.json; %s", err),
+			},
+			http.StatusInternalServerError,
+		)
+		return
+	}
+	server.JsonResponse(w, &jwks, http.StatusOK)
+}

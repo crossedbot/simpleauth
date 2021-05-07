@@ -3,13 +3,9 @@ package controller
 import (
 	"context"
 	"errors"
-	"fmt"
-	"io"
-	"io/ioutil"
 	"net/http"
 	"sync"
 
-	"github.com/crossedbot/common/golang/logger"
 	"github.com/crossedbot/common/golang/server"
 	jwt "github.com/crossedbot/simplejwt"
 	middleware "github.com/crossedbot/simplemiddleware"
@@ -28,28 +24,13 @@ var (
 )
 
 var publicAuthKey []byte // XXX this is necessary for it to persist in keyFunc
-var SetAuthPublicKey = func(pubKey io.Reader) error {
-	var err error
-	publicAuthKey, err = ioutil.ReadAll(pubKey)
-	if err != nil {
-		return err
-	}
-	return nil
+var setAuthPublicKey = func(pubKey []byte) {
+	publicAuthKey = pubKey
 }
 
 var authOnce sync.Once
 var authenticator = func() (mw middleware.Middleware) {
 	authOnce.Do(func() {
-		var err error
-		publicAuthKey, err = ioutil.ReadFile(DefaultPublicKey)
-		if err != nil {
-			logger.Warning(
-				fmt.Sprintf(
-					"Authenticator: default public key ('%s') not found",
-					DefaultPublicKey,
-				),
-			)
-		}
 		keyFunc := func(token *middleware.Token) ([]byte, error) {
 			return publicAuthKey, nil
 		}

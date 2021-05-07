@@ -35,7 +35,7 @@ func TestGenerateTokens(t *testing.T) {
 		UserId:    "abc123",
 		UserType:  models.BaseUserType.String(),
 	}
-	tkn, rTkn, err := GenerateTokens(user, []byte(testPrivateKey))
+	tkn, rTkn, err := GenerateTokens(user, []byte(testPublicKey), []byte(testPrivateKey))
 	require.Nil(t, err)
 	parsedTkn, err := jwt.Parse(tkn)
 	require.Nil(t, err)

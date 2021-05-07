@@ -50,4 +50,10 @@ var Routes = []Route{
 		"/otp/qr",
 		[]server.ResponseSetting{},
 	},
+	Route{
+		GetJwk,
+		http.MethodGet,
+		"/.well-known/jwks.json",
+		[]server.ResponseSetting{},
+	},
 }
