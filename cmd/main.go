@@ -28,7 +28,7 @@ type Config struct {
 
 	DatabaseAddr string `toml:"database_addr"`
 	PrivateKey   string `toml:"private_key"`
-	PublicKey    string `toml:"public_key"`
+	Certificate  string `toml:"certificate"`
 }
 
 func fatal(format string, a ...interface{}) {
@@ -70,12 +70,12 @@ func run(ctx context.Context) error {
 			return err
 		}
 	}
-	if c.PublicKey != "" {
-		pubKey, err := os.Open(c.PublicKey)
+	if c.Certificate != "" {
+		cert, err := os.Open(c.Certificate)
 		if err != nil {
 			return err
 		}
-		if err := controller.SetAuthPublicKey(pubKey); err != nil {
+		if err := controller.V1().SetAuthCert(cert); err != nil {
 			return err
 		}
 	}

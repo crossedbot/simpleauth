@@ -5,11 +5,13 @@ import (
 	"errors"
 	"time"
 
+	commoncrypto "github.com/crossedbot/common/golang/crypto"
 	"github.com/crossedbot/simplejwt"
 	"github.com/crossedbot/simplejwt/algorithms"
 	"github.com/sec51/twofactor"
 	"golang.org/x/crypto/bcrypt"
 
+	"github.com/crossedbot/simpleauth/internal/pkg/jwk"
 	"github.com/crossedbot/simpleauth/internal/pkg/models"
 )
 
@@ -35,7 +37,7 @@ func VerifyPassword(hashedPass, pass string) error {
 	return msg
 }
 
-func GenerateTokens(user models.User, key []byte) (string, string, error) {
+func GenerateTokens(user models.User, publicKey, privateKey []byte) (string, string, error) {
 	claims := simplejwt.CustomClaims{
 		"email":     user.Email,
 		"first":     user.FirstName,
@@ -46,7 +48,9 @@ func GenerateTokens(user models.User, key []byte) (string, string, error) {
 			time.Hour * time.Duration(AccessTokenExpiration),
 		).Unix(),
 	}
-	tkn, err := simplejwt.New(claims, algorithms.AlgorithmRS256).Sign(key)
+	jwt := simplejwt.New(claims, algorithms.AlgorithmRS256)
+	jwt.Header["kid"] = jwk.EncodeToString(commoncrypto.KeyId(publicKey))
+	tkn, err := jwt.Sign(privateKey)
 	if err != nil {
 		return "", "", err
 	}
@@ -56,7 +60,7 @@ func GenerateTokens(user models.User, key []byte) (string, string, error) {
 			time.Hour * time.Duration(RefreshTokenExpiration),
 		).Unix(),
 	}
-	refreshTkn, err := simplejwt.New(refreshClaims, algorithms.AlgorithmRS256).Sign(key)
+	refreshTkn, err := simplejwt.New(refreshClaims, algorithms.AlgorithmRS256).Sign(privateKey)
 	if err != nil {
 		return "", "", err
 	}

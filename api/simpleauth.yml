@@ -155,6 +155,22 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
+  /.well-known/jwk.json:
+    get:
+      summary: Get JWK JSON
+      description: Get the JSON Web Keys
+      tags:
+        - .well-known
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JWKs'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
 components:
   schemas:
     Login:
@@ -243,6 +259,65 @@ components:
           description: QR code of TOTP
           type: string
           format: byte
+    JWKs:
+      description: List of JSON Web Keys
+      type: object
+      required:
+        - keys
+      properties:
+        keys:
+          description: An array of JWK results
+          type: array
+          items:
+            $ref: '#/components/schemas/JWK'
+          uniqueItems: true
+    JWK:
+      description: JWK object
+      type: object
+      required:
+        - alg
+        - kty
+        - kid
+        - use
+        - n
+        - e
+        - x5c
+        - x5t
+      properties:
+        alg:
+          description: Version of cryptographic algorithm
+          type: string
+          example: RSA256
+        kty:
+          description: Cryptographic algorithm
+          type: string
+          example: RSA
+        kid:
+          description: Key ID
+          type: string
+          example: C16dqSBbp-E
+        use:
+          description: Use of key
+          type: string
+          example: sig
+        n:
+          description: The modulas of the RSA key
+          type: string
+          example: 2XKVUjV0DE37wFJyJway29vxVGT9Xh23gHxdeuVV7IIX-TJgrzSdZ5YMpAv4IdCgSJSA-jPeaNDJlvrvywr_naLH4_f8i1xqdLecc4Yei2VDrFGIghyhEgr5QEBNCCR0kNrETnsRFvLalgH1e1XANevRjR7tiuKCHmvdT7WH8-svr0Sf6Ztt5pT-Q1UQ8hpEfYquQpuX-MpGABnNvWj_mrbvEu9Bg8uvpHucxQsTFvUfxho_g536eYWnV6rU23x2xfsUqoPQqME4La7a-9CQOf9Ga0QWUDJhOJ6noAg2j0tux2HcgYc3-21yWnYK43Ph9zSRzCT8Pou6ylq_IM0YQw
+        e:
+          description: The exponent of the RSA key
+          type: string
+          example: AQABAA
+        x5c:
+          description: The x.509 certificate chain
+          type: array
+          items:
+            type: string
+          example: [MIIDFzCCAf8CFArpekmt3PBEGpQuAyTpLIdmU3EGMA0GCSqGSIb3DQEBCwUAMEgx\nCzAJBgNVBAYTAkNBMRAwDgYDVQQIDAdPbnRhcmlvMRIwEAYDVQQHDAlLaXRjaGVu\nZXIxEzARBgNVBAoMClNpbXBsZUF1dGgwHhcNMjEwNTA0MDAzODQyWhcNMjIwNTA0\nMDAzODQyWjBIMQswCQYDVQQGEwJDQTEQMA4GA1UECAwHT250YXJpbzESMBAGA1UE\nBwwJS2l0Y2hlbmVyMRMwEQYDVQQKDApTaW1wbGVBdXRoMIIBIjANBgkqhkiG9w0B\nAQEFAAOCAQ8AMIIBCgKCAQEA2XKVUjV0DE37wFJyJway29vxVGT9Xh23gHxdeuVV\n7IIX+TJgrzSdZ5YMpAv4IdCgSJSA+jPeaNDJlvrvywr/naLH4/f8i1xqdLecc4Ye\ni2VDrFGIghyhEgr5QEBNCCR0kNrETnsRFvLalgH1e1XANevRjR7tiuKCHmvdT7WH\n8+svr0Sf6Ztt5pT+Q1UQ8hpEfYquQpuX+MpGABnNvWj/mrbvEu9Bg8uvpHucxQsT\nFvUfxho/g536eYWnV6rU23x2xfsUqoPQqME4La7a+9CQOf9Ga0QWUDJhOJ6noAg2\nj0tux2HcgYc3+21yWnYK43Ph9zSRzCT8Pou6ylq/IM0YQwIDAQABMA0GCSqGSIb3\nDQEBCwUAA4IBAQBG+ktDjOq9mvjdTsgmUZUy38sBL9/NB0iN+XfulkPurI3ieBgM\nQLUb6c+dO+MqX/+2vlYy+/Y2g/6jq9Sy/Gc+SITM7oWgky8IbyxdkE3k3cbpslfb\nbutr/fcsj0+K1SzZl6s89vyTxZxxEElyqScjQAg3v2lpxWpplzmoj7BQhi7SHIz5\nHkyzfdDbOlNLF0V/1Dhjkovib+HHwlaKsCyuPXFLhJyHQud0y1DhxLaJoo+sazfj\ntceo2/wc+ALHlGPecHlSrrS/MIXwfpDLKTPK9ylVdspVbKGtqC/akvmQVfBMaq9X\nMBpGEsOV6Zte/eICn1HTS147htUGQFjSNtun]
+        x5t:
+          description: Thumbprint of x.509 cert (SHA-1)
+          type: string
+          example: eM73uaeMoyj6bWGA5aWOWW2ENi0
     Error:
       description: Base error object
       type: object

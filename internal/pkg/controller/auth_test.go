@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"bytes"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -69,7 +68,7 @@ func TestAuthenticate(t *testing.T) {
 	hdr := "Authorization"
 	bearer = fmt.Sprintf("Bearer %s", bearer)
 	r.Header.Set(hdr, bearer)
-	err = SetAuthPublicKey(bytes.NewBuffer([]byte(testPublicKey)))
+	setAuthPublicKey([]byte(testPublicKey))
 	require.Nil(t, err)
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		inner := Authenticate(
@@ -100,7 +99,7 @@ func TestGetUserIdFromRequest(t *testing.T) {
 	r := new(http.Request)
 	r.Header = make(http.Header)
 	r.Header.Set(hdr, fmt.Sprintf("Bearer %s", tkn))
-	err = SetAuthPublicKey(bytes.NewBuffer([]byte(testPublicKey)))
+	setAuthPublicKey([]byte(testPublicKey))
 	require.Nil(t, err)
 	actual, err := getUserIdFromRequest(r)
 	require.Nil(t, err)

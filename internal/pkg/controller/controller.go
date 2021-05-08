@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"os"
 	"sync"
 	"time"
 
@@ -18,6 +19,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 
 	"github.com/crossedbot/simpleauth/internal/pkg/database"
+	"github.com/crossedbot/simpleauth/internal/pkg/jwk"
 	"github.com/crossedbot/simpleauth/internal/pkg/models"
 )
 
@@ -25,6 +27,7 @@ const (
 	DefaultTotpIssuer   = "simpleauth"
 	DefaultTotpDigits   = 6
 	DefaultPrivateKey   = "~/.simpleauth/simpleauth.key"
+	DefaultCertificate  = "~/.simpleauth/simpleauth.cert"
 	DefaultDatabaseAddr = "mongodb://127.0.0.1:27017"
 )
 
@@ -38,6 +41,7 @@ type Controller interface {
 	// Control functions
 	SetDatabase(addr string) error
 	SetAuthPrivateKey(io.Reader) error
+	SetAuthCert(io.Reader) error
 	SetTotpIssuer(issuer string)
 
 	// Handler functions
@@ -47,12 +51,14 @@ type Controller interface {
 	ValidateOtp(id, otp string) (models.AccessToken, error)
 	GetOtpQr(id string) ([]byte, error)
 	RefreshToken(id string) (models.AccessToken, error)
+	GetJwks() (jwk.Jwks, error)
 }
 
 type controller struct {
 	ctx        context.Context
 	client     *mongo.Client
 	privateKey []byte
+	cert       jwk.Certificate
 	issuer     string
 }
 
@@ -79,13 +85,33 @@ var V1 = func() Controller {
 				),
 			)
 		}
-		control = New(ctx, db, key, DefaultTotpIssuer)
+		cert := jwk.Certificate{}
+		certFd, err := os.Open(DefaultCertificate)
+		if err != nil {
+			logger.Warning(
+				fmt.Sprintf(
+					"Controller: default certificate ('%s') not found",
+					DefaultCertificate,
+				),
+			)
+		} else {
+			cert, err = jwk.NewCertificate(certFd)
+			if err != nil {
+				panic(fmt.Sprintf("Controller: failed to parse certificate; %s", err))
+			}
+			publicKey, err := cert.PublicKey()
+			if err != nil {
+				panic(fmt.Sprintf("Controller: failed to parse certificate's public key; %s", err))
+			}
+			setAuthPublicKey(publicKey)
+		}
+		control = New(ctx, db, key, cert, DefaultTotpIssuer)
 	})
 	return control
 }
 
-func New(ctx context.Context, client *mongo.Client, privateKey []byte, totpIssuer string) Controller {
-	return &controller{ctx, client, privateKey, totpIssuer}
+func New(ctx context.Context, client *mongo.Client, privateKey []byte, cert jwk.Certificate, totpIssuer string) Controller {
+	return &controller{ctx, client, privateKey, cert, totpIssuer}
 }
 
 func (c *controller) SetDatabase(addr string) error {
@@ -103,6 +129,20 @@ func (c *controller) SetAuthPrivateKey(privKey io.Reader) error {
 		return err
 	}
 	c.privateKey = b
+	return nil
+}
+
+func (c *controller) SetAuthCert(cert io.Reader) error {
+	newCert, err := jwk.NewCertificate(cert)
+	if err != nil {
+		return err
+	}
+	publicKey, err := newCert.PublicKey()
+	if err != nil {
+		return err
+	}
+	setAuthPublicKey(publicKey)
+	c.cert = newCert
 	return nil
 }
 
@@ -124,7 +164,7 @@ func (c *controller) Login(user models.User) (models.AccessToken, error) {
 	refreshTkn := ""
 	if !foundUser.TotpEnabled {
 		// Only login if TOTP has not been enabled
-		tkn, refreshTkn, err = GenerateTokens(foundUser, c.privateKey)
+		tkn, refreshTkn, err = GenerateTokens(foundUser, publicAuthKey, c.privateKey)
 		if err != nil {
 			return models.AccessToken{}, err
 		}
@@ -162,7 +202,7 @@ func (c *controller) SignUp(user models.User) (models.AccessToken, error) {
 	user.UpdatedAt = now
 	user.ID = primitive.NewObjectID()
 	user.UserId = user.ID.Hex()
-	tkn, refreshTkn, err := GenerateTokens(user, c.privateKey)
+	tkn, refreshTkn, err := GenerateTokens(user, publicAuthKey, c.privateKey)
 	if err != nil {
 		return models.AccessToken{}, err
 	}
@@ -227,7 +267,7 @@ func (c *controller) ValidateOtp(id, otp string) (models.AccessToken, error) {
 	if err := totp.Validate(otp); err != nil {
 		return models.AccessToken{}, err
 	}
-	tkn, refreshTkn, err := GenerateTokens(foundUser, c.privateKey)
+	tkn, refreshTkn, err := GenerateTokens(foundUser, publicAuthKey, c.privateKey)
 	if err != nil {
 		return models.AccessToken{}, err
 	}
@@ -266,7 +306,7 @@ func (c *controller) RefreshToken(id string) (models.AccessToken, error) {
 	if err != nil {
 		return models.AccessToken{}, ErrorUserNotFound
 	}
-	tkn, refreshTkn, err := GenerateTokens(foundUser, c.privateKey)
+	tkn, refreshTkn, err := GenerateTokens(foundUser, publicAuthKey, c.privateKey)
 	if err != nil {
 		return models.AccessToken{}, err
 	}
@@ -278,6 +318,11 @@ func (c *controller) RefreshToken(id string) (models.AccessToken, error) {
 		RefreshToken: refreshTkn,
 		OtpRequired:  foundUser.TotpEnabled,
 	}, nil
+}
+
+func (c *controller) GetJwks() (jwk.Jwks, error) {
+	webKey, err := c.cert.ToJwk()
+	return jwk.Jwks{Keys: []jwk.Jwk{webKey}}, err
 }
 
 func (c *controller) Users() *mongo.Collection {
