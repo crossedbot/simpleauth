@@ -1,0 +1,11 @@
+services:
+    mongo:
+        image: mongo:latest
+    simpleauth:
+        image: simpleauth:latest
+        depends_on:
+            - mongo
+        links:
+            - mongo
+        ports:
+            - "${PORT}:8080"
