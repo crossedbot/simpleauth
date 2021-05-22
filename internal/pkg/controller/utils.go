@@ -42,7 +42,7 @@ func GenerateTokens(user models.User, publicKey, privateKey []byte) (string, str
 		"email":     user.Email,
 		"first":     user.FirstName,
 		"last":      user.LastName,
-		"uid":       user.UserId,
+		ClaimUserID: user.UserId,
 		"user_type": user.UserType,
 		"exp": time.Now().Local().Add(
 			time.Hour * time.Duration(AccessTokenExpiration),
@@ -55,7 +55,7 @@ func GenerateTokens(user models.User, publicKey, privateKey []byte) (string, str
 		return "", "", err
 	}
 	refreshClaims := simplejwt.CustomClaims{
-		"uid": user.UserId,
+		ClaimUserID: user.UserId,
 		"exp": time.Now().Local().Add(
 			time.Hour * time.Duration(RefreshTokenExpiration),
 		).Unix(),

@@ -57,7 +57,7 @@ func TestAuthenticate(t *testing.T) {
 	r, err := http.NewRequest(http.MethodGet, "/test", nil)
 	require.Nil(t, err)
 	claims := simplejwt.CustomClaims{
-		"uid": "myuserid :3",
+		ClaimUserID: "myuserid :3",
 		"exp": time.Now().Local().Add(
 			time.Hour * time.Duration(RefreshTokenExpiration),
 		).Unix(),
@@ -88,7 +88,7 @@ func TestAuthenticate(t *testing.T) {
 func TestGetUserIdFromRequest(t *testing.T) {
 	expected := "myuserid :3"
 	claims := simplejwt.CustomClaims{
-		"uid": expected,
+		ClaimUserID: expected,
 		"exp": time.Now().Local().Add(
 			time.Hour * time.Duration(RefreshTokenExpiration),
 		).Unix(),
