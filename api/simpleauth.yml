@@ -149,7 +149,7 @@ paths:
             image/png:
               schema:
                 type: string
-                format: binary        
+                format: binary
         '401':
           $ref: '#/components/responses/Unauthorized'
         '500':
@@ -177,11 +177,11 @@ components:
       description: Login object with Email and Password
       type: object
       required:
-        - email
+        - name
         - password
       properties:
-        email:
-          description: Email of user attempting to login
+        name:
+          description: Email/Username of the user attempting to login
           type: string
           example: hello@world.com
         password:
@@ -212,11 +212,21 @@ components:
       description: User object
       type: object
       required:
-        - first_name
-        - last_name
+        - username
         - password
-        - email
       properties:
+        username:
+          description: Username of the user
+          type: string
+          example: hello.world
+        password:
+          description: Password of the user
+          type: string
+          example: iamapassword
+        email:
+          description: Email address of the user
+          type: string
+          example: hello@world.com
         first_name:
           description: First name of the user
           type: string
@@ -225,14 +235,6 @@ components:
           description: Last name of the user
           type: string
           example: Doe
-        email:
-          description: Email address of the user
-          type: string
-          example: hello@world.com
-        password:
-          description: Password of the user
-          type: string
-          example: iamapassword
         phone:
           description: Phone of the user
           type: string

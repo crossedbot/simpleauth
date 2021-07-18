@@ -32,9 +32,11 @@ const (
 )
 
 var (
-	ErrorUserNotFound   = errors.New("User not found")
-	ErrorUserExists     = errors.New("The email or phone number already exists")
-	ErrorBadCredentials = errors.New("The username or password is incorrect")
+	ErrorUserNotFound     = errors.New("User not found")
+	ErrorUserExists       = errors.New("The username, email or phone number already exists")
+	ErrorBadCredentials   = errors.New("The username or password is incorrect")
+	ErrorUsernameRequired = errors.New("Username/Email is required")
+	ErrorPasswordRequired = errors.New("Password is required")
 )
 
 type Controller interface {
@@ -45,7 +47,7 @@ type Controller interface {
 	SetTotpIssuer(issuer string)
 
 	// Handler functions
-	Login(models.User) (models.AccessToken, error)
+	Login(models.Login) (models.AccessToken, error)
 	SignUp(models.User) (models.AccessToken, error)
 	SetTotp(id string, totp models.Totp) (models.Totp, error)
 	ValidateOtp(id, otp string) (models.AccessToken, error)
@@ -150,14 +152,21 @@ func (c *controller) SetTotpIssuer(issuer string) {
 	c.issuer = issuer
 }
 
-func (c *controller) Login(user models.User) (models.AccessToken, error) {
+func (c *controller) Login(login models.Login) (models.AccessToken, error) {
 	users := c.Users()
+	filter := bson.D{bson.E{
+		Key: "$or",
+		Value: bson.A{
+			bson.M{"email": login.Name},
+			bson.M{"username": login.Name},
+		},
+	}}
 	var foundUser models.User
-	err := users.FindOne(c.ctx, bson.M{"email": user.Email}).Decode(&foundUser)
+	err := users.FindOne(c.ctx, filter).Decode(&foundUser)
 	if err != nil {
 		return models.AccessToken{}, ErrorUserNotFound
 	}
-	if err := VerifyPassword(foundUser.Password, user.Password); err != nil {
+	if err := VerifyPassword(foundUser.Password, login.Password); err != nil {
 		return models.AccessToken{}, ErrorBadCredentials
 	}
 	tkn := ""
@@ -180,15 +189,28 @@ func (c *controller) Login(user models.User) (models.AccessToken, error) {
 }
 
 func (c *controller) SignUp(user models.User) (models.AccessToken, error) {
-	emailCount, err := c.Users().CountDocuments(c.ctx, bson.M{"email": user.Email})
+	filter := bson.D{bson.E{
+		Key: "$or",
+		Value: bson.A{
+			bson.M{"email": user.Email},
+			bson.M{"username": user.Username},
+		},
+	}}
+	userCount, err := c.Users().CountDocuments(c.ctx, filter)
 	if err != nil {
 		return models.AccessToken{}, err
 	}
-	phoneCount, err := c.Users().CountDocuments(c.ctx, bson.M{"phone": user.Phone})
-	if err != nil {
-		return models.AccessToken{}, err
+	if user.Phone != "" {
+		count, err := c.Users().CountDocuments(
+			c.ctx,
+			bson.M{"phone": user.Phone},
+		)
+		if err != nil {
+			return models.AccessToken{}, err
+		}
+		userCount += count
 	}
-	if emailCount > 0 || phoneCount > 0 {
+	if userCount > 0 {
 		return models.AccessToken{}, ErrorUserExists
 	}
 	hashedPass, err := HashPassword(user.Password)
