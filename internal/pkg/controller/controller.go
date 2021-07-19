@@ -8,6 +8,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -153,6 +154,7 @@ func (c *controller) SetTotpIssuer(issuer string) {
 }
 
 func (c *controller) Login(login models.Login) (models.AccessToken, error) {
+	login.Name = strings.ToLower(login.Name)
 	users := c.Users()
 	filter := bson.D{bson.E{
 		Key: "$or",
@@ -189,6 +191,8 @@ func (c *controller) Login(login models.Login) (models.AccessToken, error) {
 }
 
 func (c *controller) SignUp(user models.User) (models.AccessToken, error) {
+	user.Email = strings.ToLower(user.Email)
+	user.Username = strings.ToLower(user.Username)
 	filter := bson.D{bson.E{
 		Key: "$or",
 		Value: bson.A{
