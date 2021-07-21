@@ -12,8 +12,8 @@ import (
 )
 
 func Login(w http.ResponseWriter, r *http.Request, p server.Parameters) {
-	var user models.User
-	if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
+	var login models.Login
+	if err := json.NewDecoder(r.Body).Decode(&login); err != nil {
 		logger.Error(err)
 		server.JsonResponse(
 			w, models.Error{
@@ -24,7 +24,33 @@ func Login(w http.ResponseWriter, r *http.Request, p server.Parameters) {
 		)
 		return
 	}
-	tkn, err := V1().Login(user)
+	if login.Name == "" {
+		server.JsonResponse(
+			w, models.Error{
+				Code: models.ErrProcessingRequestCode,
+				Message: fmt.Sprintf(
+					"Failed to login; %s",
+					ErrorUsernameRequired,
+				),
+			},
+			http.StatusBadRequest,
+		)
+		return
+	}
+	if login.Password == "" {
+		server.JsonResponse(
+			w, models.Error{
+				Code: models.ErrProcessingRequestCode,
+				Message: fmt.Sprintf(
+					"Failed to login; %s",
+					ErrorPasswordRequired,
+				),
+			},
+			http.StatusBadRequest,
+		)
+		return
+	}
+	tkn, err := V1().Login(login)
 	if err == ErrorBadCredentials {
 		logger.Error(err)
 		server.JsonResponse(
@@ -34,6 +60,7 @@ func Login(w http.ResponseWriter, r *http.Request, p server.Parameters) {
 			},
 			http.StatusBadRequest,
 		)
+		return
 	} else if err != nil {
 		logger.Error(err)
 		server.JsonResponse(
@@ -56,6 +83,34 @@ func SignUp(w http.ResponseWriter, r *http.Request, p server.Parameters) {
 			w, models.Error{
 				Code:    models.ErrFailedConversionCode,
 				Message: fmt.Sprintf("Failed to parse request body; %s", err),
+			},
+			http.StatusBadRequest,
+		)
+		return
+	}
+	if user.Username == "" && user.Email == "" {
+		server.JsonResponse(
+			w,
+			models.Error{
+				Code: models.ErrProcessingRequestCode,
+				Message: fmt.Sprintf(
+					"Failed to signup; %s",
+					ErrorUsernameRequired,
+				),
+			},
+			http.StatusBadRequest,
+		)
+		return
+	}
+	if user.Password == "" {
+		server.JsonResponse(
+			w,
+			models.Error{
+				Code: models.ErrProcessingRequestCode,
+				Message: fmt.Sprintf(
+					"Failed to signup; %s",
+					ErrorPasswordRequired,
+				),
 			},
 			http.StatusBadRequest,
 		)

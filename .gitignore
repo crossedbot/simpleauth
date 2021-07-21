@@ -17,3 +17,4 @@
 secrets/*
 !secrets/README.md
 keys
+api/*.html

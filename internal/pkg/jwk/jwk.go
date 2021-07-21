@@ -156,7 +156,6 @@ func NewSerialNumber() (*big.Int, error) {
 	return rand.Int(rand.Reader, limit)
 }
 
-// XXX not needed anymore?
 // NewTemplate returns a new Certificate using default values
 func NewTemplate(subject pkix.Name, ipAddrs, dnsNames []string) (*x509.Certificate, error) {
 	serialNumber, err := NewSerialNumber()
