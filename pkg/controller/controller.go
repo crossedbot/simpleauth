@@ -19,9 +19,9 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 
-	"github.com/crossedbot/simpleauth/internal/pkg/database"
-	"github.com/crossedbot/simpleauth/internal/pkg/jwk"
-	"github.com/crossedbot/simpleauth/internal/pkg/models"
+	"github.com/crossedbot/simpleauth/pkg/database"
+	"github.com/crossedbot/simpleauth/pkg/jwk"
+	"github.com/crossedbot/simpleauth/pkg/models"
 )
 
 const (
@@ -193,13 +193,11 @@ func (c *controller) Login(login models.Login) (models.AccessToken, error) {
 func (c *controller) SignUp(user models.User) (models.AccessToken, error) {
 	user.Email = strings.ToLower(user.Email)
 	user.Username = strings.ToLower(user.Username)
-	filter := bson.D{bson.E{
-		Key: "$or",
-		Value: bson.A{
-			bson.M{"email": user.Email},
-			bson.M{"username": user.Username},
-		},
-	}}
+	params := bson.A{bson.M{"username": user.Username}}
+	if user.Email != "" {
+		params = append(params, bson.M{"email": user.Email})
+	}
+	filter := bson.D{bson.E{Key: "$or", Value: params}}
 	userCount, err := c.Users().CountDocuments(c.ctx, filter)
 	if err != nil {
 		return models.AccessToken{}, err
@@ -222,7 +220,7 @@ func (c *controller) SignUp(user models.User) (models.AccessToken, error) {
 		return models.AccessToken{}, err
 	}
 	now, _ := time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
-	user.UserType = models.BaseUserType.String()
+	user.UserType = strings.ToUpper(user.UserType)
 	user.Password = hashedPass
 	user.CreatedAt = now
 	user.UpdatedAt = now

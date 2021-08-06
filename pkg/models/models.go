@@ -22,6 +22,7 @@ type User struct {
 	RefreshToken string             `bson:"refresh_token" json:"-"`
 	TotpEnabled  bool               `bson:"totp_enabled" json:"totp_enabled"`
 	Totp         string             `bson:"totp" json:"-"`
+	Options      map[string]string  `bson:"options" json:"options"`
 }
 
 type Users struct {

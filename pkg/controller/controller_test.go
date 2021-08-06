@@ -9,10 +9,10 @@ import (
 	"encoding/pem"
 	"testing"
 
-	"github.com/crossedbot/simpleauth/internal/pkg/jwk"
+	"github.com/crossedbot/simplejwt/algorithms"
 	"github.com/stretchr/testify/require"
 
-	"github.com/crossedbot/simplejwt/algorithms"
+	"github.com/crossedbot/simpleauth/pkg/jwk"
 )
 
 func TestSetDatabase(t *testing.T) {

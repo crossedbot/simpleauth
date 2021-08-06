@@ -13,7 +13,7 @@ import (
 	"github.com/crossedbot/common/golang/server"
 	"github.com/crossedbot/common/golang/service"
 
-	"github.com/crossedbot/simpleauth/internal/pkg/controller"
+	"github.com/crossedbot/simpleauth/pkg/controller"
 )
 
 const (

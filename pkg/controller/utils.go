@@ -11,8 +11,8 @@ import (
 	"github.com/sec51/twofactor"
 	"golang.org/x/crypto/bcrypt"
 
-	"github.com/crossedbot/simpleauth/internal/pkg/jwk"
-	"github.com/crossedbot/simpleauth/internal/pkg/models"
+	"github.com/crossedbot/simpleauth/pkg/jwk"
+	"github.com/crossedbot/simpleauth/pkg/models"
 )
 
 const (
