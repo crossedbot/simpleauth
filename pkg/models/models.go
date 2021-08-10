@@ -1,9 +1,34 @@
 package models
 
 import (
+	"errors"
+	"fmt"
+	"regexp"
+	"strings"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
+)
+
+const (
+	MaxNameSize            = 255
+	MaxEmailLocalPartSize  = 64
+	MaxEmailServerPartSize = 255
+)
+
+var (
+	// Regular expression list
+	// Meant to provide a simple syntax check; e.g. good luck validating
+	// emails
+	UsernameRe     = regexp.MustCompile(`^\w(?:\S?\w){2,127}$`)
+	EmailAddressRe = regexp.MustCompile(`^.+@.+\..+$`)
+	PhoneRe        = regexp.MustCompile(`^[\+]?[(]?[0-9]{3}[)]?[-\s\.]?[0-9]{3}[-\s\.]?[0-9]{4,6}$`)
+
+	// Errors list
+	ErrorInvalidName         = fmt.Errorf("Name exceeds max length of %d", MaxNameSize)
+	ErrorInvalidEmailAddress = errors.New("Email address is invalid")
+	ErrorInvalidUsername     = errors.New("Username is invalid")
+	ErrorInvalidPhonenumber  = errors.New("Phonenumber is invalid")
 )
 
 type User struct {
@@ -23,6 +48,45 @@ type User struct {
 	TotpEnabled  bool               `bson:"totp_enabled" json:"totp_enabled"`
 	Totp         string             `bson:"totp" json:"-"`
 	Options      map[string]string  `bson:"options" json:"options"`
+}
+
+func (u User) Valid() error {
+	if len(u.FirstName) > MaxNameSize {
+		return ErrorInvalidName
+	}
+	if len(u.LastName) > MaxNameSize {
+		return ErrorInvalidName
+	}
+	if len(u.Email) > 0 && !ValidEmailAddress(u.Email) {
+		return ErrorInvalidEmailAddress
+	}
+	if len(u.Username) > 0 && !ValidUsername(u.Username) {
+		return ErrorInvalidUsername
+	}
+	if len(u.Phone) > 0 && !ValidPhonenumber(u.Phone) {
+		return ErrorInvalidPhonenumber
+	}
+	return nil
+}
+
+func ValidUsername(username string) bool {
+	return UsernameRe.MatchString(username)
+}
+
+func ValidEmailAddress(email string) bool {
+	if EmailAddressRe.MatchString(email) {
+		idx := strings.LastIndex(email, "@")
+		if idx > 0 &&
+			len(email[:idx]) <= MaxEmailLocalPartSize &&
+			len(email[idx+1:]) <= MaxEmailServerPartSize {
+			return true
+		}
+	}
+	return false
+}
+
+func ValidPhonenumber(phone string) bool {
+	return PhoneRe.MatchString(phone)
 }
 
 type Users struct {

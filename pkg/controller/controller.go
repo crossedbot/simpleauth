@@ -191,8 +191,11 @@ func (c *controller) Login(login models.Login) (models.AccessToken, error) {
 }
 
 func (c *controller) SignUp(user models.User) (models.AccessToken, error) {
-	user.Email = strings.ToLower(user.Email)
 	user.Username = strings.ToLower(user.Username)
+	user.Email = strings.ToLower(user.Email)
+	if err := user.Valid(); err != nil {
+		return models.AccessToken{}, err
+	}
 	params := bson.A{bson.M{"username": user.Username}}
 	if user.Email != "" {
 		params = append(params, bson.M{"email": user.Email})
