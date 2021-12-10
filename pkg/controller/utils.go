@@ -21,6 +21,9 @@ const (
 )
 
 func HashPassword(pass string) (string, error) {
+	// I should probably add a note here that hashing the password alone is
+	// fine, for the library handles salting and all that itself. If things
+	// change I'll modify this appropriately.
 	b, err := bcrypt.GenerateFromPassword([]byte(pass), bcrypt.DefaultCost)
 	if err != nil {
 		return "", err

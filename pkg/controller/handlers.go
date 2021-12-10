@@ -128,7 +128,9 @@ func SignUp(w http.ResponseWriter, r *http.Request, p server.Parameters) {
 		)
 		return
 	}
-	if _, err := models.ToUserType(user.UserType); err != nil {
+	if user.UserType == "" {
+		user.UserType = models.BaseUserType.String()
+	} else if _, err := models.ToUserType(user.UserType); err != nil {
 		server.JsonResponse(
 			w,
 			models.Error{
