@@ -3,6 +3,7 @@ package models
 import (
 	"testing"
 
+	"github.com/crossedbot/common/golang/crypto"
 	"github.com/stretchr/testify/require"
 )
 
@@ -106,6 +107,50 @@ func TestValidPhoneNumber(t *testing.T) {
 	}
 }
 
+func TestValidOptions(t *testing.T) {
+	{
+		// Valid options
+		options := map[string]string{
+			"app_id":   "99986338-1113-4706-8302-4420da6158aa",
+			"local_id": "hello.world",
+		}
+		b := ValidOptions(options)
+		require.Equal(t, true, b)
+	}
+	{
+		// Invalid key, valid value
+		invalidKey, err := crypto.GenerateRandomString(MaxNameSize + 1)
+		require.Nil(t, err)
+		options := map[string]string{invalidKey: "invalid.key"}
+		b := ValidOptions(options)
+		require.Equal(t, false, b)
+	}
+	{
+		// Valid key, invalid value
+		invalidValue, err := crypto.GenerateRandomString(MaxValueSize + 1)
+		require.Nil(t, err)
+		options := map[string]string{"invalid_value": invalidValue}
+		b := ValidOptions(options)
+		require.Equal(t, false, b)
+	}
+	{
+		// Edge key, valid value
+		edgeKey, err := crypto.GenerateRandomString(MaxNameSize)
+		require.Nil(t, err)
+		options := map[string]string{edgeKey: "edge.key"}
+		b := ValidOptions(options)
+		require.Equal(t, true, b)
+	}
+	{
+		// Valid key, edge value
+		edgeValue, err := crypto.GenerateRandomString(MaxValueSize)
+		require.Nil(t, err)
+		options := map[string]string{"edge.value": edgeValue}
+		b := ValidOptions(options)
+		require.Equal(t, true, b)
+	}
+}
+
 func TestUserValid(t *testing.T) {
 	// Valid User
 	user := User{
@@ -114,6 +159,10 @@ func TestUserValid(t *testing.T) {
 		Email:     "hello@world.com",
 		Username:  "hello.world",
 		Phone:     "+16308520397",
+		Options: map[string]string{
+			"app_id":   "99986338-1113-4706-8302-4420da6158aa",
+			"local_id": "hello.world",
+		},
 	}
 	err := user.Valid()
 	require.Nil(t, err)
@@ -164,6 +213,21 @@ func TestUserValid(t *testing.T) {
 	// invalid phonenumber
 	user.Username = "hello.world"
 	user.Phone = "+123"
+	err = user.Valid()
+	require.NotNil(t, err)
+
+	// invalid options key
+	user.Phone = "+16308520397"
+	invalidKey, err := crypto.GenerateRandomString(MaxNameSize + 1)
+	require.Nil(t, err)
+	user.Options = map[string]string{invalidKey: "invalid.key"}
+	err = user.Valid()
+	require.NotNil(t, err)
+
+	// invalid options value
+	invalidValue, err := crypto.GenerateRandomString(MaxValueSize + 1)
+	require.Nil(t, err)
+	user.Options = map[string]string{"invalid_value": invalidValue}
 	err = user.Valid()
 	require.NotNil(t, err)
 }

@@ -12,6 +12,7 @@ import (
 
 const (
 	MaxNameSize            = 255
+	MaxValueSize           = 4096
 	MaxEmailLocalPartSize  = 64
 	MaxEmailServerPartSize = 255
 )
@@ -29,6 +30,7 @@ var (
 	ErrorInvalidEmailAddress = errors.New("Email address is invalid")
 	ErrorInvalidUsername     = errors.New("Username is invalid")
 	ErrorInvalidPhonenumber  = errors.New("Phonenumber is invalid")
+	ErrorInvalidOptions      = errors.New("Options contain invalid key-value pair")
 )
 
 type User struct {
@@ -66,6 +68,9 @@ func (u User) Valid() error {
 	if len(u.Phone) > 0 && !ValidPhonenumber(u.Phone) {
 		return ErrorInvalidPhonenumber
 	}
+	if len(u.Options) > 0 && !ValidOptions(u.Options) {
+		return ErrorInvalidOptions
+	}
 	return nil
 }
 
@@ -87,6 +92,15 @@ func ValidEmailAddress(email string) bool {
 
 func ValidPhonenumber(phone string) bool {
 	return PhoneRe.MatchString(phone)
+}
+
+func ValidOptions(options map[string]string) bool {
+	for k, v := range options {
+		if len(k) > MaxNameSize || len(v) > MaxValueSize {
+			return false
+		}
+	}
+	return true
 }
 
 type Users struct {
