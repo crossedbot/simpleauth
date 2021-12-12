@@ -10,7 +10,7 @@ import (
 	jwt "github.com/crossedbot/simplejwt"
 	middleware "github.com/crossedbot/simplemiddleware"
 
-	"github.com/crossedbot/simpleauth/internal/pkg/models"
+	"github.com/crossedbot/simpleauth/pkg/models"
 )
 
 const (

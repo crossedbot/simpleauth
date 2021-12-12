@@ -8,7 +8,7 @@ import (
 	"github.com/crossedbot/common/golang/logger"
 	"github.com/crossedbot/common/golang/server"
 
-	"github.com/crossedbot/simpleauth/internal/pkg/models"
+	"github.com/crossedbot/simpleauth/pkg/models"
 )
 
 func Login(w http.ResponseWriter, r *http.Request, p server.Parameters) {
@@ -17,8 +17,11 @@ func Login(w http.ResponseWriter, r *http.Request, p server.Parameters) {
 		logger.Error(err)
 		server.JsonResponse(
 			w, models.Error{
-				Code:    models.ErrFailedConversionCode,
-				Message: fmt.Sprintf("Failed to parse request body; %s", err),
+				Code: models.ErrFailedConversionCode,
+				Message: fmt.Sprintf(
+					"Failed to parse request body; %s",
+					err,
+				),
 			},
 			http.StatusBadRequest,
 		)
@@ -55,8 +58,11 @@ func Login(w http.ResponseWriter, r *http.Request, p server.Parameters) {
 		logger.Error(err)
 		server.JsonResponse(
 			w, models.Error{
-				Code:    models.ErrProcessingRequestCode,
-				Message: fmt.Sprintf("Failed to login; %s", err),
+				Code: models.ErrProcessingRequestCode,
+				Message: fmt.Sprintf(
+					"Failed to login; %s",
+					err,
+				),
 			},
 			http.StatusBadRequest,
 		)
@@ -65,8 +71,11 @@ func Login(w http.ResponseWriter, r *http.Request, p server.Parameters) {
 		logger.Error(err)
 		server.JsonResponse(
 			w, models.Error{
-				Code:    models.ErrProcessingRequestCode,
-				Message: fmt.Sprintf("Failed to login; %s", err),
+				Code: models.ErrProcessingRequestCode,
+				Message: fmt.Sprintf(
+					"Failed to login; %s",
+					err,
+				),
 			},
 			http.StatusInternalServerError,
 		)
@@ -81,8 +90,11 @@ func SignUp(w http.ResponseWriter, r *http.Request, p server.Parameters) {
 		logger.Error(err)
 		server.JsonResponse(
 			w, models.Error{
-				Code:    models.ErrFailedConversionCode,
-				Message: fmt.Sprintf("Failed to parse request body; %s", err),
+				Code: models.ErrFailedConversionCode,
+				Message: fmt.Sprintf(
+					"Failed to parse request body; %s",
+					err,
+				),
 			},
 			http.StatusBadRequest,
 		)
@@ -116,14 +128,33 @@ func SignUp(w http.ResponseWriter, r *http.Request, p server.Parameters) {
 		)
 		return
 	}
+	if user.UserType == "" {
+		user.UserType = models.BaseUserType.String()
+	} else if _, err := models.ToUserType(user.UserType); err != nil {
+		server.JsonResponse(
+			w,
+			models.Error{
+				Code: models.ErrProcessingRequestCode,
+				Message: fmt.Sprintf(
+					"Failed to signup; %s",
+					err,
+				),
+			},
+			http.StatusBadRequest,
+		)
+		return
+	}
 	tkn, err := V1().SignUp(user)
 	if err != nil {
 		logger.Error(err)
 		server.JsonResponse(
 			w,
 			models.Error{
-				Code:    models.ErrProcessingRequestCode,
-				Message: fmt.Sprintf("Failed to signup; %s", err),
+				Code: models.ErrProcessingRequestCode,
+				Message: fmt.Sprintf(
+					"Failed to signup; %s",
+					err,
+				),
 			},
 			http.StatusInternalServerError,
 		)
@@ -139,8 +170,11 @@ func SetTotp(w http.ResponseWriter, r *http.Request, p server.Parameters) {
 		logger.Error(err)
 		server.JsonResponse(
 			w, models.Error{
-				Code:    models.ErrFailedConversionCode,
-				Message: fmt.Sprintf("Failed to parse request body; %s", err),
+				Code: models.ErrFailedConversionCode,
+				Message: fmt.Sprintf(
+					"Failed to parse request body; %s",
+					err,
+				),
 			},
 			http.StatusBadRequest,
 		)
@@ -151,8 +185,11 @@ func SetTotp(w http.ResponseWriter, r *http.Request, p server.Parameters) {
 		logger.Error(err)
 		server.JsonResponse(
 			w, models.Error{
-				Code:    models.ErrProcessingRequestCode,
-				Message: fmt.Sprintf("Failed to set totp; %s", err),
+				Code: models.ErrProcessingRequestCode,
+				Message: fmt.Sprintf(
+					"Failed to set totp; %s",
+					err,
+				),
 			},
 			http.StatusInternalServerError,
 		)
@@ -179,8 +216,11 @@ func ValidateOtp(w http.ResponseWriter, r *http.Request, p server.Parameters) {
 		logger.Error(err)
 		server.JsonResponse(
 			w, models.Error{
-				Code:    models.ErrProcessingRequestCode,
-				Message: fmt.Sprintf("Failed to validate otp; %s", err),
+				Code: models.ErrProcessingRequestCode,
+				Message: fmt.Sprintf(
+					"Failed to validate otp; %s",
+					err,
+				),
 			},
 			http.StatusInternalServerError,
 		)
@@ -196,8 +236,11 @@ func GetOtpQr(w http.ResponseWriter, r *http.Request, p server.Parameters) {
 		logger.Error(err)
 		server.JsonResponse(
 			w, models.Error{
-				Code:    models.ErrProcessingRequestCode,
-				Message: fmt.Sprintf("Failed to get otp qr; %s", err),
+				Code: models.ErrProcessingRequestCode,
+				Message: fmt.Sprintf(
+					"Failed to get otp qr; %s",
+					err,
+				),
 			},
 			http.StatusInternalServerError,
 		)
@@ -216,8 +259,11 @@ func RefreshToken(w http.ResponseWriter, r *http.Request, p server.Parameters) {
 		server.JsonResponse(
 			w,
 			models.Error{
-				Code:    models.ErrProcessingRequestCode,
-				Message: fmt.Sprintf("Failed to refresh access token; %s", err),
+				Code: models.ErrProcessingRequestCode,
+				Message: fmt.Sprintf(
+					"Failed to refresh access token; %s",
+					err,
+				),
 			},
 			http.StatusInternalServerError,
 		)
@@ -233,8 +279,11 @@ func GetJwk(w http.ResponseWriter, r *http.Request, p server.Parameters) {
 		server.JsonResponse(
 			w,
 			models.Error{
-				Code:    models.ErrProcessingRequestCode,
-				Message: fmt.Sprintf("Failed to retrieve jwk.json; %s", err),
+				Code: models.ErrProcessingRequestCode,
+				Message: fmt.Sprintf(
+					"Failed to retrieve jwk.json; %s",
+					err,
+				),
 			},
 			http.StatusInternalServerError,
 		)

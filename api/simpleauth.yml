@@ -223,6 +223,11 @@ components:
           description: Password of the user
           type: string
           example: iamapassword
+        user_type:
+          description: User type of the user
+          type: string
+          enum: ["USER", "GUEST", "ADMIN"]
+          default: "USER"
         email:
           description: Email address of the user
           type: string
@@ -243,6 +248,14 @@ components:
           description: Indicates OTP is requried for user
           type: boolean
           example: true
+        options:
+          description: Map of additional options to store with the user
+          type: object
+          additionalProperties:
+            type: string
+          example:
+            app_id: "99986338-1113-4706-8302-4420da6158aa"
+            local_id: "hello.world"
     Totp:
       description: TOTP object
       type: object

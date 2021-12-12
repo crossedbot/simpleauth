@@ -9,11 +9,13 @@ type UserType int
 
 const (
 	BaseUserType UserType = iota
+	GuestUserType
 	AdminUserType
 )
 
 var UserTypeStrings = []string{
 	"USER",
+	"GUEST",
 	"ADMIN",
 }
 

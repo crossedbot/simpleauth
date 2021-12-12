@@ -5,10 +5,11 @@ import (
 	"encoding/base64"
 	"testing"
 
-	"github.com/crossedbot/simpleauth/internal/pkg/models"
 	jwt "github.com/crossedbot/simplejwt"
 	"github.com/sec51/twofactor"
 	"github.com/stretchr/testify/require"
+
+	"github.com/crossedbot/simpleauth/pkg/models"
 )
 
 func TestHashPassword(t *testing.T) {
