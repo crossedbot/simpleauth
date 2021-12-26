@@ -4,56 +4,50 @@ import (
 	"net/http"
 
 	"github.com/crossedbot/common/golang/server"
+	middleware "github.com/crossedbot/simplemiddleware"
 )
 
-type Route struct {
-	Handler          server.Handler
-	Method           string
-	Path             string
-	ResponseSettings []server.ResponseSetting
-}
-
-var Routes = []Route{
-	Route{
-		Login,
-		http.MethodPost,
-		"/users/login",
-		[]server.ResponseSetting{},
+var Routes = []server.Route{
+	server.Route{
+		Handler:          Login,
+		Method:           http.MethodPost,
+		Path:             "/users/login",
+		ResponseSettings: []server.ResponseSetting{},
 	},
-	Route{
-		SignUp,
-		http.MethodPost,
-		"/users/signup",
-		[]server.ResponseSetting{},
+	server.Route{
+		Handler:          SignUp,
+		Method:           http.MethodPost,
+		Path:             "/users/signup",
+		ResponseSettings: []server.ResponseSetting{},
 	},
-	Route{
-		Authenticate(RefreshToken),
-		http.MethodGet,
-		"/users/refresh",
-		[]server.ResponseSetting{},
+	server.Route{
+		Handler:          middleware.Authorize(RefreshToken),
+		Method:           http.MethodGet,
+		Path:             "/users/refresh",
+		ResponseSettings: []server.ResponseSetting{},
 	},
-	Route{
-		Authenticate(SetTotp),
-		http.MethodPost,
-		"/otp",
-		[]server.ResponseSetting{},
+	server.Route{
+		Handler:          middleware.Authorize(SetTotp),
+		Method:           http.MethodPost,
+		Path:             "/otp",
+		ResponseSettings: []server.ResponseSetting{},
 	},
-	Route{
-		Authenticate(ValidateOtp),
-		http.MethodGet,
-		"/otp/validate/:otp",
-		[]server.ResponseSetting{},
+	server.Route{
+		Handler:          middleware.Authorize(ValidateOtp),
+		Method:           http.MethodGet,
+		Path:             "/otp/validate/:otp",
+		ResponseSettings: []server.ResponseSetting{},
 	},
-	Route{
-		Authenticate(GetOtpQr),
-		http.MethodGet,
-		"/otp/qr",
-		[]server.ResponseSetting{},
+	server.Route{
+		Handler:          middleware.Authorize(GetOtpQr),
+		Method:           http.MethodGet,
+		Path:             "/otp/qr",
+		ResponseSettings: []server.ResponseSetting{},
 	},
-	Route{
-		GetJwk,
-		http.MethodGet,
-		"/.well-known/jwks.json",
-		[]server.ResponseSetting{},
+	server.Route{
+		Handler:          GetJwk,
+		Method:           http.MethodGet,
+		Path:             "/.well-known/jwks.json",
+		ResponseSettings: []server.ResponseSetting{},
 	},
 }
