@@ -12,7 +12,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/crossedbot/common/golang/logger"
+	"github.com/crossedbot/common/golang/config"
+	"github.com/crossedbot/simplejwt/jwk"
+	middleware "github.com/crossedbot/simplemiddleware"
 	"github.com/sec51/twofactor"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -20,7 +22,6 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 
 	"github.com/crossedbot/simpleauth/pkg/database"
-	"github.com/crossedbot/simpleauth/pkg/jwk"
 	"github.com/crossedbot/simpleauth/pkg/models"
 )
 
@@ -61,60 +62,94 @@ type controller struct {
 	ctx        context.Context
 	client     *mongo.Client
 	privateKey []byte
+	publicKey  []byte
 	cert       jwk.Certificate
 	issuer     string
+}
+
+type Config struct {
+	DatabaseAddr string `toml:"database_addr"`
+	PrivateKey   string `toml:"private_key"`
+	Certificate  string `toml:"certificate"`
+	TotpIssuer   string `toml:"totp_issuer"`
 }
 
 var control Controller
 var controllerOnce sync.Once
 var V1 = func() Controller {
 	controllerOnce.Do(func() {
-		ctx := context.Background()
-		db, err := database.New(ctx, DefaultDatabaseAddr)
-		if err != nil {
-			logger.Warning(
-				fmt.Sprintf(
-					"Controller: failed to connect to database at default address ('%s')",
-					DefaultDatabaseAddr,
-				),
-			)
+		var cfg Config
+		if err := config.Load(&cfg); err != nil {
+			panic(err)
 		}
-		key, err := ioutil.ReadFile(DefaultPrivateKey)
+		ctx := context.Background()
+		db, err := database.New(ctx, cfg.DatabaseAddr)
 		if err != nil {
-			logger.Warning(
-				fmt.Sprintf(
-					"Controller: default private key ('%s') not found",
-					DefaultPrivateKey,
-				),
-			)
+			panic(fmt.Sprintf(
+				"Controller: failed to connect to database at "+
+					"address ('%s')",
+				cfg.DatabaseAddr,
+			))
+		}
+		privateKey, err := ioutil.ReadFile(cfg.PrivateKey)
+		if err != nil {
+			panic(fmt.Sprintf(
+				"Controller: private key not found ('%s')",
+				cfg.PrivateKey,
+			))
 		}
 		cert := jwk.Certificate{}
-		certFd, err := os.Open(DefaultCertificate)
+		certFd, err := os.Open(cfg.Certificate)
 		if err != nil {
-			logger.Warning(
-				fmt.Sprintf(
-					"Controller: default certificate ('%s') not found",
-					DefaultCertificate,
-				),
-			)
-		} else {
-			cert, err = jwk.NewCertificate(certFd)
-			if err != nil {
-				panic(fmt.Sprintf("Controller: failed to parse certificate; %s", err))
-			}
-			publicKey, err := cert.PublicKey()
-			if err != nil {
-				panic(fmt.Sprintf("Controller: failed to parse certificate's public key; %s", err))
-			}
-			setAuthPublicKey(publicKey)
+			panic(fmt.Sprintf(
+				"Controller: certificate not found ('%s')",
+				cfg.Certificate,
+			))
 		}
-		control = New(ctx, db, key, cert, DefaultTotpIssuer)
+		cert, err = jwk.NewCertificate(certFd)
+		if err != nil {
+			panic(fmt.Sprintf(
+				"Controller: failed to parse certificate; %s",
+				err,
+			))
+		}
+		publicKey, err := cert.PublicKey()
+		if err != nil {
+			panic(fmt.Sprintf(
+				"Controller: failed to parse certificate's "+
+					"public key; %s",
+				err,
+			))
+		}
+		middleware.SetAuthPublicKey(publicKey)
+		control = New(
+			ctx,
+			db,
+			privateKey,
+			publicKey,
+			cert,
+			cfg.TotpIssuer,
+		)
 	})
 	return control
 }
 
-func New(ctx context.Context, client *mongo.Client, privateKey []byte, cert jwk.Certificate, totpIssuer string) Controller {
-	return &controller{ctx, client, privateKey, cert, totpIssuer}
+func New(
+	ctx context.Context,
+	client *mongo.Client,
+	privateKey []byte,
+	publicKey []byte,
+	cert jwk.Certificate,
+	totpIssuer string,
+) Controller {
+	return &controller{
+		ctx,
+		client,
+		privateKey,
+		publicKey,
+		cert,
+		totpIssuer,
+	}
 }
 
 func (c *controller) SetDatabase(addr string) error {
@@ -140,11 +175,11 @@ func (c *controller) SetAuthCert(cert io.Reader) error {
 	if err != nil {
 		return err
 	}
-	publicKey, err := newCert.PublicKey()
+	c.publicKey, err = newCert.PublicKey()
 	if err != nil {
 		return err
 	}
-	setAuthPublicKey(publicKey)
+	middleware.SetAuthPublicKey(c.publicKey)
 	c.cert = newCert
 	return nil
 }
@@ -175,7 +210,7 @@ func (c *controller) Login(login models.Login) (models.AccessToken, error) {
 	refreshTkn := ""
 	if !foundUser.TotpEnabled {
 		// Only login if TOTP has not been enabled
-		tkn, refreshTkn, err = GenerateTokens(foundUser, publicAuthKey, c.privateKey)
+		tkn, refreshTkn, err = GenerateTokens(foundUser, c.publicKey, c.privateKey)
 		if err != nil {
 			return models.AccessToken{}, err
 		}
@@ -229,7 +264,7 @@ func (c *controller) SignUp(user models.User) (models.AccessToken, error) {
 	user.UpdatedAt = now
 	user.ID = primitive.NewObjectID()
 	user.UserId = user.ID.Hex()
-	tkn, refreshTkn, err := GenerateTokens(user, publicAuthKey, c.privateKey)
+	tkn, refreshTkn, err := GenerateTokens(user, c.publicKey, c.privateKey)
 	if err != nil {
 		return models.AccessToken{}, err
 	}
@@ -294,7 +329,7 @@ func (c *controller) ValidateOtp(id, otp string) (models.AccessToken, error) {
 	if err := totp.Validate(otp); err != nil {
 		return models.AccessToken{}, err
 	}
-	tkn, refreshTkn, err := GenerateTokens(foundUser, publicAuthKey, c.privateKey)
+	tkn, refreshTkn, err := GenerateTokens(foundUser, c.publicKey, c.privateKey)
 	if err != nil {
 		return models.AccessToken{}, err
 	}
@@ -333,7 +368,7 @@ func (c *controller) RefreshToken(id string) (models.AccessToken, error) {
 	if err != nil {
 		return models.AccessToken{}, ErrorUserNotFound
 	}
-	tkn, refreshTkn, err := GenerateTokens(foundUser, publicAuthKey, c.privateKey)
+	tkn, refreshTkn, err := GenerateTokens(foundUser, c.publicKey, c.privateKey)
 	if err != nil {
 		return models.AccessToken{}, err
 	}

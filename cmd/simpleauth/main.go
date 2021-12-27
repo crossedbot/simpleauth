@@ -25,10 +25,14 @@ type Config struct {
 	Port         int    `toml:"port"`
 	ReadTimeout  int    `toml:"read_timeout"`  // in seconds
 	WriteTimeout int    `toml:"write_timeout"` // in seconds
+}
 
-	DatabaseAddr string `toml:"database_addr"`
-	PrivateKey   string `toml:"private_key"`
-	Certificate  string `toml:"certificate"`
+func main() {
+	ctx := context.Background()
+	svc := service.New(ctx)
+	if err := svc.Run(run, syscall.SIGINT, syscall.SIGTERM); err != nil {
+		fatal("Error: %s", err)
+	}
 }
 
 func fatal(format string, a ...interface{}) {
@@ -61,29 +65,6 @@ func run(ctx context.Context) error {
 	if err := config.Load(&c); err != nil {
 		return err
 	}
-	if c.PrivateKey != "" {
-		privKey, err := os.Open(c.PrivateKey)
-		if err != nil {
-			return err
-		}
-		if err := controller.V1().SetAuthPrivateKey(privKey); err != nil {
-			return err
-		}
-	}
-	if c.Certificate != "" {
-		cert, err := os.Open(c.Certificate)
-		if err != nil {
-			return err
-		}
-		if err := controller.V1().SetAuthCert(cert); err != nil {
-			return err
-		}
-	}
-	if c.DatabaseAddr != "" {
-		if err := controller.V1().SetDatabase(c.DatabaseAddr); err != nil {
-			return err
-		}
-	}
 	srv := newServer(c)
 	if err := srv.Start(); err != nil {
 		return err
@@ -92,12 +73,4 @@ func run(ctx context.Context) error {
 	<-ctx.Done()
 	logger.Info("Received signal, shutting down...")
 	return nil
-}
-
-func main() {
-	ctx := context.Background()
-	svc := service.New(ctx)
-	if err := svc.Run(run, syscall.SIGINT, syscall.SIGTERM); err != nil {
-		fatal("Error: %s", err)
-	}
 }

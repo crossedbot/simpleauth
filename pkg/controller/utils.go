@@ -8,10 +8,11 @@ import (
 	commoncrypto "github.com/crossedbot/common/golang/crypto"
 	"github.com/crossedbot/simplejwt"
 	"github.com/crossedbot/simplejwt/algorithms"
+	"github.com/crossedbot/simplejwt/jwk"
+	middleware "github.com/crossedbot/simplemiddleware"
 	"github.com/sec51/twofactor"
 	"golang.org/x/crypto/bcrypt"
 
-	"github.com/crossedbot/simpleauth/pkg/jwk"
 	"github.com/crossedbot/simpleauth/pkg/models"
 )
 
@@ -42,11 +43,11 @@ func VerifyPassword(hashedPass, pass string) error {
 
 func GenerateTokens(user models.User, publicKey, privateKey []byte) (string, string, error) {
 	claims := simplejwt.CustomClaims{
-		"email":     user.Email,
-		"first":     user.FirstName,
-		"last":      user.LastName,
-		ClaimUserID: user.UserId,
-		"user_type": user.UserType,
+		"email":                user.Email,
+		"first":                user.FirstName,
+		"last":                 user.LastName,
+		middleware.ClaimUserId: user.UserId,
+		"user_type":            user.UserType,
 		"exp": time.Now().Local().Add(
 			time.Hour * time.Duration(AccessTokenExpiration),
 		).Unix(),
@@ -58,7 +59,7 @@ func GenerateTokens(user models.User, publicKey, privateKey []byte) (string, str
 		return "", "", err
 	}
 	refreshClaims := simplejwt.CustomClaims{
-		ClaimUserID: user.UserId,
+		middleware.ClaimUserId: user.UserId,
 		"exp": time.Now().Local().Add(
 			time.Hour * time.Duration(RefreshTokenExpiration),
 		).Unix(),
