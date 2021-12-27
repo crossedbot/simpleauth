@@ -37,7 +37,7 @@ type User struct {
 	ID           primitive.ObjectID `bson:"_id" json:"-"`
 	FirstName    string             `bson:"first_name" json:"first_name"`
 	LastName     string             `bson:"last_name" json:"last_name"`
-	Password     string             `bson:"password" json:"-"`
+	Password     string             `bson:"password" json:"password"`
 	Email        string             `bson:"email" json:"email"`
 	Username     string             `bson:"username" json:"username"`
 	Phone        string             `bson:"phone" json:"phone"`
