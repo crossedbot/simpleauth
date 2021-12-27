@@ -30,11 +30,13 @@ cert="${HOME}/.simpleauth/cert.pem"
 while getopts "hc:p:d:" opt; do
     case "$opt" in
     [h?]) usage
-    ;;
+        ;;
     c) conf="${OPTARG}"
-    ;;
+        ;;
     d) db_addr="${OPTARG}"
-    ;;
+        ;;
+    p) port="${OPTARG}"
+        ;;
     esac
 done
 
