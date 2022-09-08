@@ -1,11 +1,14 @@
 package controller
 
 import (
+	"context"
 	"crypto"
 	"encoding/base64"
+	"net/http"
 	"testing"
 
 	jwt "github.com/crossedbot/simplejwt"
+	middleware "github.com/crossedbot/simplemiddleware"
 	"github.com/sec51/twofactor"
 	"github.com/stretchr/testify/require"
 
@@ -36,7 +39,8 @@ func TestGenerateTokens(t *testing.T) {
 		UserId:    "abc123",
 		UserType:  models.BaseUserType.String(),
 	}
-	tkn, rTkn, err := GenerateTokens(user, []byte(testPublicKey), []byte(testPrivateKey))
+	tkn, rTkn, err := GenerateTokens(user, []byte(testPublicKey),
+		[]byte(testPrivateKey), nil)
 	require.Nil(t, err)
 	parsedTkn, err := jwt.Parse(tkn)
 	require.Nil(t, err)
@@ -82,4 +86,22 @@ func TestEncodeTotp(t *testing.T) {
 	actual, err := totp2.ToBytes()
 	require.Nil(t, err)
 	require.Equal(t, expected, actual)
+}
+
+func TestContainsGrant(t *testing.T) {
+	req, err := http.NewRequest(http.MethodGet, "hello.world/test", nil)
+	require.Nil(t, err)
+	ctx := req.Context()
+	ctx = context.WithValue(ctx, middleware.ClaimGrantType, GrantTypeAuthenticated.String())
+	req = req.WithContext(ctx)
+	require.Nil(t, ContainsGrant(GrantTypeOTP, req))
+	require.Nil(t, ContainsGrant(GrantTypeOTPValidate, req))
+	require.Nil(t, ContainsGrant(GrantTypeUsersRefresh, req))
+
+	ctx = req.Context()
+	ctx = context.WithValue(ctx, middleware.ClaimGrantType, GrantTypeUsersRefresh.String())
+	req = req.WithContext(ctx)
+	require.NotNil(t, ContainsGrant(GrantTypeOTP, req))
+	require.NotNil(t, ContainsGrant(GrantTypeOTPValidate, req))
+	require.Nil(t, ContainsGrant(GrantTypeUsersRefresh, req))
 }

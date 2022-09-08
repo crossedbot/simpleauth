@@ -3,6 +3,8 @@ package controller
 import (
 	"encoding/base64"
 	"errors"
+	"net/http"
+	"strings"
 	"time"
 
 	commoncrypto "github.com/crossedbot/common/golang/crypto"
@@ -17,8 +19,13 @@ import (
 )
 
 const (
-	AccessTokenExpiration  = 1  // hours
-	RefreshTokenExpiration = 24 // hours
+	AccessTokenExpiration      = 1 * time.Hour
+	RefreshTokenExpiration     = 24 * time.Hour
+	TransactionTokenExpiration = 5 * time.Minute
+)
+
+var (
+	ErrRequestGrant = errors.New("Request does not match grant")
 )
 
 func HashPassword(pass string) (string, error) {
@@ -41,32 +48,54 @@ func VerifyPassword(hashedPass, pass string) error {
 	return msg
 }
 
-func GenerateTokens(user models.User, publicKey, privateKey []byte) (string, string, error) {
+type TokenOptions struct {
+	Grant       GrantType
+	TTL         time.Duration
+	RefreshTTL  time.Duration
+	SkipRefresh bool
+}
+
+func GenerateTokens(user models.User, pubKey, privKey []byte, options *TokenOptions) (string, string, error) {
+	grant := GrantTypeAuthenticated
+	if options != nil && options.Grant != GrantTypeUnknown {
+		grant = options.Grant
+	}
+	ttl := AccessTokenExpiration
+	if options != nil && options.TTL > time.Duration(0) {
+		ttl = options.TTL
+	}
+	refreshTtl := RefreshTokenExpiration
+	if options != nil && options.RefreshTTL > time.Duration(0) {
+		refreshTtl = options.RefreshTTL
+	}
 	claims := simplejwt.CustomClaims{
-		"email":                user.Email,
-		"first":                user.FirstName,
-		"last":                 user.LastName,
-		middleware.ClaimUserId: user.UserId,
-		"user_type":            user.UserType,
-		"exp": time.Now().Local().Add(
-			time.Hour * time.Duration(AccessTokenExpiration),
-		).Unix(),
+		"email":                   user.Email,
+		"first":                   user.FirstName,
+		"last":                    user.LastName,
+		middleware.ClaimUserId:    user.UserId,
+		"user_type":               user.UserType,
+		"exp":                     time.Now().Local().Add(ttl).Unix(),
+		middleware.ClaimGrantType: grant.String(),
 	}
 	jwt := simplejwt.New(claims, algorithms.AlgorithmRS256)
-	jwt.Header["kid"] = jwk.EncodeToString(commoncrypto.KeyId(publicKey))
-	tkn, err := jwt.Sign(privateKey)
+	jwt.Header["kid"] = jwk.EncodeToString(commoncrypto.KeyId(pubKey))
+	tkn, err := jwt.Sign(privKey)
 	if err != nil {
 		return "", "", err
 	}
-	refreshClaims := simplejwt.CustomClaims{
-		middleware.ClaimUserId: user.UserId,
-		"exp": time.Now().Local().Add(
-			time.Hour * time.Duration(RefreshTokenExpiration),
-		).Unix(),
-	}
-	refreshTkn, err := simplejwt.New(refreshClaims, algorithms.AlgorithmRS256).Sign(privateKey)
-	if err != nil {
-		return "", "", err
+	refreshTkn := ""
+	if options == nil || !options.SkipRefresh {
+		exp := time.Now().Local().Add(refreshTtl).Unix()
+		refreshClaims := simplejwt.CustomClaims{
+			middleware.ClaimUserId:    user.UserId,
+			"exp":                     exp,
+			middleware.ClaimGrantType: GrantTypeUsersRefresh.String(),
+		}
+		refreshTkn, err = simplejwt.New(refreshClaims,
+			algorithms.AlgorithmRS256).Sign(privKey)
+		if err != nil {
+			return "", "", err
+		}
 	}
 	return tkn, refreshTkn, nil
 }
@@ -85,4 +114,29 @@ func EncodeTotp(totp *twofactor.Totp) (string, error) {
 		return "", err
 	}
 	return base64.URLEncoding.EncodeToString(b), nil
+}
+
+func ContainsGrant(grant GrantType, r *http.Request) error {
+	// XXX this needs to be refactored
+	reqGrant, ok := r.Context().Value(middleware.ClaimGrantType).(string)
+	if !ok {
+		return middleware.ErrGrantTypeDataType
+	}
+	expectedGrants := strings.Split(grant.String(), ",")
+	actualGrants := strings.Split(reqGrant, ",")
+	for _, expected := range expectedGrants {
+		expected = strings.TrimSpace(expected)
+		found := false
+		for _, actual := range actualGrants {
+			actual = strings.TrimSpace(actual)
+			if strings.EqualFold(expected, actual) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return ErrRequestGrant
+		}
+	}
+	return nil
 }

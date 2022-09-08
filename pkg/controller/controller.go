@@ -39,6 +39,7 @@ var (
 	ErrorBadCredentials   = errors.New("The username or password is incorrect")
 	ErrorUsernameRequired = errors.New("Username/Email is required")
 	ErrorPasswordRequired = errors.New("Password is required")
+	ErrorTotpNotFound     = errors.New("TOTP not set for user")
 )
 
 type Controller interface {
@@ -81,6 +82,9 @@ var V1 = func() Controller {
 		var cfg Config
 		if err := config.Load(&cfg); err != nil {
 			panic(err)
+		}
+		if cfg.TotpIssuer == "" {
+			cfg.TotpIssuer = DefaultTotpIssuer
 		}
 		ctx := context.Background()
 		db, err := database.New(ctx, cfg.DatabaseAddr)
@@ -208,15 +212,21 @@ func (c *controller) Login(login models.Login) (models.AccessToken, error) {
 	}
 	tkn := ""
 	refreshTkn := ""
-	if !foundUser.TotpEnabled {
-		// Only login if TOTP has not been enabled
-		tkn, refreshTkn, err = GenerateTokens(foundUser, c.publicKey, c.privateKey)
-		if err != nil {
-			return models.AccessToken{}, err
-		}
-		if err := c.UpdateTokens(tkn, refreshTkn, foundUser.UserId); err != nil {
-			return models.AccessToken{}, err
-		}
+	options := &TokenOptions{}
+	if foundUser.TotpEnabled {
+		// If TOTP is enabled then we only need a short-lived access
+		// token to complete the OTP transaction.
+		options.Grant = GrantTypeOTPValidate
+		options.TTL = TransactionTokenExpiration
+		options.SkipRefresh = true
+	}
+	tkn, refreshTkn, err = GenerateTokens(foundUser, c.publicKey,
+		c.privateKey, options)
+	if err != nil {
+		return models.AccessToken{}, err
+	}
+	if err := c.UpdateTokens(tkn, refreshTkn, foundUser.UserId); err != nil {
+		return models.AccessToken{}, err
 	}
 	return models.AccessToken{
 		Token:        tkn,
@@ -264,13 +274,21 @@ func (c *controller) SignUp(user models.User) (models.AccessToken, error) {
 	user.UpdatedAt = now
 	user.ID = primitive.NewObjectID()
 	user.UserId = user.ID.Hex()
-	tkn, refreshTkn, err := GenerateTokens(user, c.publicKey, c.privateKey)
+	tkn, refreshTkn, err := GenerateTokens(user, c.publicKey, c.privateKey,
+		nil)
 	if err != nil {
 		return models.AccessToken{}, err
 	}
 	user.Token = tkn
 	user.RefreshToken = refreshTkn
-	_, err = c.Users().InsertOne(c.ctx, user)
+	result, err := c.Users().InsertOne(c.ctx, user)
+	if err != nil {
+		return models.AccessToken{}, err
+	}
+	id, ok := result.InsertedID.(primitive.ObjectID)
+	if ok {
+		c.SetTotp(id.String(), models.Totp{Enabled: user.TotpEnabled})
+	}
 	return models.AccessToken{
 		Token:        tkn,
 		RefreshToken: refreshTkn,
@@ -286,6 +304,10 @@ func (c *controller) SetTotp(id string, totp models.Totp) (models.Totp, error) {
 		return models.Totp{}, ErrorUserNotFound
 	}
 	if totp.Enabled && foundUser.Totp == "" {
+		account := foundUser.Email
+		if account == "" {
+			account = foundUser.Username
+		}
 		// set TOTP if it doesn't exist and is enabled
 		newTotp, err := twofactor.NewTOTP(
 			foundUser.Email,
@@ -329,11 +351,13 @@ func (c *controller) ValidateOtp(id, otp string) (models.AccessToken, error) {
 	if err := totp.Validate(otp); err != nil {
 		return models.AccessToken{}, err
 	}
-	tkn, refreshTkn, err := GenerateTokens(foundUser, c.publicKey, c.privateKey)
+	tkn, refreshTkn, err := GenerateTokens(foundUser, c.publicKey,
+		c.privateKey, nil)
 	if err != nil {
 		return models.AccessToken{}, err
 	}
-	if err := c.UpdateTokens(tkn, refreshTkn, foundUser.UserId); err != nil {
+	err = c.UpdateTokens(tkn, refreshTkn, foundUser.UserId)
+	if err != nil {
 		return models.AccessToken{}, err
 	}
 	return models.AccessToken{
@@ -357,8 +381,7 @@ func (c *controller) GetOtpQr(id string) ([]byte, error) {
 		}
 		return totp.QR()
 	}
-	// XXX is this fine? and should we respond a NotFound?
-	return nil, nil
+	return nil, ErrorTotpNotFound
 }
 
 func (c *controller) RefreshToken(id string) (models.AccessToken, error) {
@@ -368,7 +391,8 @@ func (c *controller) RefreshToken(id string) (models.AccessToken, error) {
 	if err != nil {
 		return models.AccessToken{}, ErrorUserNotFound
 	}
-	tkn, refreshTkn, err := GenerateTokens(foundUser, c.publicKey, c.privateKey)
+	tkn, refreshTkn, err := GenerateTokens(foundUser, c.publicKey,
+		c.privateKey, nil)
 	if err != nil {
 		return models.AccessToken{}, err
 	}
@@ -413,8 +437,8 @@ func (c *controller) UpdateTotp(enabled bool, totp, userId string) error {
 	users := c.Users()
 	now, _ := time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
 	update := primitive.D{
-		bson.E{Key: "Totp_enabled", Value: enabled},
-		bson.E{Key: "Totp", Value: totp},
+		bson.E{Key: "totp_enabled", Value: enabled},
+		bson.E{Key: "totp", Value: totp},
 		bson.E{Key: "updated_at", Value: now},
 	}
 	upsert := true

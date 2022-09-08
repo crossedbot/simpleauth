@@ -131,6 +131,13 @@ func SignUp(w http.ResponseWriter, r *http.Request, p server.Parameters) {
 }
 
 func SetTotp(w http.ResponseWriter, r *http.Request, p server.Parameters) {
+	if err := ContainsGrant(GrantTypeSetOTP, r); err != nil {
+		server.JsonResponse(w, server.Error{
+			Code:    server.ErrUnauthorizedCode,
+			Message: "Not authorized to perform this action",
+		}, http.StatusForbidden)
+		return
+	}
 	uid, _ := r.Context().Value(middleware.ClaimUserId).(string)
 	var totp models.Totp
 	if err := json.NewDecoder(r.Body).Decode(&totp); err != nil {
@@ -160,6 +167,13 @@ func SetTotp(w http.ResponseWriter, r *http.Request, p server.Parameters) {
 }
 
 func ValidateOtp(w http.ResponseWriter, r *http.Request, p server.Parameters) {
+	if err := ContainsGrant(GrantTypeOTPValidate, r); err != nil {
+		server.JsonResponse(w, server.Error{
+			Code:    server.ErrUnauthorizedCode,
+			Message: "Not authorized to perform this action",
+		}, http.StatusForbidden)
+		return
+	}
 	uid, _ := r.Context().Value(middleware.ClaimUserId).(string)
 	otp := p.Get("otp")
 	if otp == "" {
@@ -185,6 +199,13 @@ func ValidateOtp(w http.ResponseWriter, r *http.Request, p server.Parameters) {
 }
 
 func GetOtpQr(w http.ResponseWriter, r *http.Request, p server.Parameters) {
+	if err := ContainsGrant(GrantTypeOTPQR, r); err != nil {
+		server.JsonResponse(w, server.Error{
+			Code:    server.ErrUnauthorizedCode,
+			Message: "Not authorized to perform this action",
+		}, http.StatusForbidden)
+		return
+	}
 	uid, _ := r.Context().Value(middleware.ClaimUserId).(string)
 	qr, err := V1().GetOtpQr(uid)
 	if err != nil {
@@ -204,6 +225,13 @@ func GetOtpQr(w http.ResponseWriter, r *http.Request, p server.Parameters) {
 }
 
 func RefreshToken(w http.ResponseWriter, r *http.Request, p server.Parameters) {
+	if err := ContainsGrant(GrantTypeUsersRefresh, r); err != nil {
+		server.JsonResponse(w, server.Error{
+			Code:    server.ErrUnauthorizedCode,
+			Message: "Not authorized to perform this action",
+		}, http.StatusForbidden)
+		return
+	}
 	uid, _ := r.Context().Value(middleware.ClaimUserId).(string)
 	refreshedToken, err := V1().RefreshToken(uid)
 	if err != nil {
