@@ -4,7 +4,6 @@ import (
 	"encoding/base64"
 	"errors"
 	"net/http"
-	"strings"
 	"time"
 
 	commoncrypto "github.com/crossedbot/common/golang/crypto"
@@ -49,16 +48,16 @@ func VerifyPassword(hashedPass, pass string) error {
 }
 
 type TokenOptions struct {
-	Grant       GrantType
+	Grant       Grant
 	TTL         time.Duration
 	RefreshTTL  time.Duration
 	SkipRefresh bool
 }
 
 func GenerateTokens(user models.User, pubKey, privKey []byte, options *TokenOptions) (string, string, error) {
-	grant := GrantTypeAuthenticated
-	if options != nil && options.Grant != GrantTypeUnknown {
-		grant = options.Grant
+	grant := GrantAuthenticated
+	if options != nil && (options.Grant&GrantUnknown) != GrantUnknown {
+		grant = options.Grant.Clean()
 	}
 	ttl := AccessTokenExpiration
 	if options != nil && options.TTL > time.Duration(0) {
@@ -69,13 +68,13 @@ func GenerateTokens(user models.User, pubKey, privKey []byte, options *TokenOpti
 		refreshTtl = options.RefreshTTL
 	}
 	claims := simplejwt.CustomClaims{
-		"email":                   user.Email,
-		"first":                   user.FirstName,
-		"last":                    user.LastName,
-		middleware.ClaimUserId:    user.UserId,
-		"user_type":               user.UserType,
-		"exp":                     time.Now().Local().Add(ttl).Unix(),
-		middleware.ClaimGrantType: grant.String(),
+		"email":                user.Email,
+		"first":                user.FirstName,
+		"last":                 user.LastName,
+		middleware.ClaimUserId: user.UserId,
+		"user_type":            user.UserType,
+		"exp":                  time.Now().Local().Add(ttl).Unix(),
+		middleware.ClaimGrant:  grant.String(),
 	}
 	jwt := simplejwt.New(claims, algorithms.AlgorithmRS256)
 	jwt.Header["kid"] = jwk.EncodeToString(commoncrypto.KeyId(pubKey))
@@ -87,9 +86,9 @@ func GenerateTokens(user models.User, pubKey, privKey []byte, options *TokenOpti
 	if options == nil || !options.SkipRefresh {
 		exp := time.Now().Local().Add(refreshTtl).Unix()
 		refreshClaims := simplejwt.CustomClaims{
-			middleware.ClaimUserId:    user.UserId,
-			"exp":                     exp,
-			middleware.ClaimGrantType: GrantTypeUsersRefresh.String(),
+			middleware.ClaimUserId: user.UserId,
+			"exp":                  exp,
+			middleware.ClaimGrant:  GrantUsersRefresh.String(),
 		}
 		refreshTkn, err = simplejwt.New(refreshClaims,
 			algorithms.AlgorithmRS256).Sign(privKey)
@@ -116,27 +115,17 @@ func EncodeTotp(totp *twofactor.Totp) (string, error) {
 	return base64.URLEncoding.EncodeToString(b), nil
 }
 
-func ContainsGrant(grant GrantType, r *http.Request) error {
-	// XXX this needs to be refactored
-	reqGrant, ok := r.Context().Value(middleware.ClaimGrantType).(string)
+func ContainsGrant(grant Grant, r *http.Request) error {
+	reqGrantStr, ok := r.Context().Value(middleware.ClaimGrant).(string)
 	if !ok {
-		return middleware.ErrGrantTypeDataType
+		return middleware.ErrGrantDataType
 	}
-	expectedGrants := strings.Split(grant.String(), ",")
-	actualGrants := strings.Split(reqGrant, ",")
-	for _, expected := range expectedGrants {
-		expected = strings.TrimSpace(expected)
-		found := false
-		for _, actual := range actualGrants {
-			actual = strings.TrimSpace(actual)
-			if strings.EqualFold(expected, actual) {
-				found = true
-				break
-			}
-		}
-		if !found {
-			return ErrRequestGrant
-		}
+	reqGrant, err := ToGrant(reqGrantStr)
+	if err != nil {
+		return err
+	}
+	if (reqGrant & grant) != grant {
+		return ErrRequestGrant
 	}
 	return nil
 }

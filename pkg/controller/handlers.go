@@ -131,7 +131,7 @@ func SignUp(w http.ResponseWriter, r *http.Request, p server.Parameters) {
 }
 
 func SetTotp(w http.ResponseWriter, r *http.Request, p server.Parameters) {
-	if err := ContainsGrant(GrantTypeSetOTP, r); err != nil {
+	if err := ContainsGrant(GrantSetOTP, r); err != nil {
 		server.JsonResponse(w, server.Error{
 			Code:    server.ErrUnauthorizedCode,
 			Message: "Not authorized to perform this action",
@@ -167,7 +167,7 @@ func SetTotp(w http.ResponseWriter, r *http.Request, p server.Parameters) {
 }
 
 func ValidateOtp(w http.ResponseWriter, r *http.Request, p server.Parameters) {
-	if err := ContainsGrant(GrantTypeOTPValidate, r); err != nil {
+	if err := ContainsGrant(GrantOTPValidate, r); err != nil {
 		server.JsonResponse(w, server.Error{
 			Code:    server.ErrUnauthorizedCode,
 			Message: "Not authorized to perform this action",
@@ -199,7 +199,7 @@ func ValidateOtp(w http.ResponseWriter, r *http.Request, p server.Parameters) {
 }
 
 func GetOtpQr(w http.ResponseWriter, r *http.Request, p server.Parameters) {
-	if err := ContainsGrant(GrantTypeOTPQR, r); err != nil {
+	if err := ContainsGrant(GrantOTPQR, r); err != nil {
 		server.JsonResponse(w, server.Error{
 			Code:    server.ErrUnauthorizedCode,
 			Message: "Not authorized to perform this action",
@@ -225,7 +225,7 @@ func GetOtpQr(w http.ResponseWriter, r *http.Request, p server.Parameters) {
 }
 
 func RefreshToken(w http.ResponseWriter, r *http.Request, p server.Parameters) {
-	if err := ContainsGrant(GrantTypeUsersRefresh, r); err != nil {
+	if err := ContainsGrant(GrantUsersRefresh, r); err != nil {
 		server.JsonResponse(w, server.Error{
 			Code:    server.ErrUnauthorizedCode,
 			Message: "Not authorized to perform this action",

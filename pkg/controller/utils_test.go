@@ -50,6 +50,7 @@ func TestGenerateTokens(t *testing.T) {
 	require.Nil(t, err)
 	err = parsedRTkn.Valid([]byte(testPublicKey))
 	require.Nil(t, err)
+	// TODO more test cases for grants
 }
 
 func TestDecodeTotp(t *testing.T) {
@@ -92,16 +93,17 @@ func TestContainsGrant(t *testing.T) {
 	req, err := http.NewRequest(http.MethodGet, "hello.world/test", nil)
 	require.Nil(t, err)
 	ctx := req.Context()
-	ctx = context.WithValue(ctx, middleware.ClaimGrantType, GrantTypeAuthenticated.String())
+	ctx = context.WithValue(ctx, middleware.ClaimGrant, GrantAuthenticated.String())
 	req = req.WithContext(ctx)
-	require.Nil(t, ContainsGrant(GrantTypeOTP, req))
-	require.Nil(t, ContainsGrant(GrantTypeOTPValidate, req))
-	require.Nil(t, ContainsGrant(GrantTypeUsersRefresh, req))
+	require.Nil(t, ContainsGrant(GrantOTP, req))
+	require.Nil(t, ContainsGrant(GrantOTPValidate, req))
+	require.Nil(t, ContainsGrant(GrantUsersRefresh, req))
 
 	ctx = req.Context()
-	ctx = context.WithValue(ctx, middleware.ClaimGrantType, GrantTypeUsersRefresh.String())
+	ctx = context.WithValue(ctx, middleware.ClaimGrant, GrantUsersRefresh.String())
 	req = req.WithContext(ctx)
-	require.NotNil(t, ContainsGrant(GrantTypeOTP, req))
-	require.NotNil(t, ContainsGrant(GrantTypeOTPValidate, req))
-	require.Nil(t, ContainsGrant(GrantTypeUsersRefresh, req))
+	require.NotNil(t, ContainsGrant(GrantOTP, req))
+	require.NotNil(t, ContainsGrant(GrantOTPValidate, req))
+	require.NotNil(t, ContainsGrant(GrantAuthenticated, req))
+	require.Nil(t, ContainsGrant(GrantUsersRefresh, req))
 }

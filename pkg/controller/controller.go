@@ -216,7 +216,7 @@ func (c *controller) Login(login models.Login) (models.AccessToken, error) {
 	if foundUser.TotpEnabled {
 		// If TOTP is enabled then we only need a short-lived access
 		// token to complete the OTP transaction.
-		options.Grant = GrantTypeOTPValidate
+		options.Grant = GrantOTPValidate
 		options.TTL = TransactionTokenExpiration
 		options.SkipRefresh = true
 	}
