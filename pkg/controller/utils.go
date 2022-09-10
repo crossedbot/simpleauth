@@ -56,7 +56,7 @@ type TokenOptions struct {
 
 func GenerateTokens(user models.User, pubKey, privKey []byte, options *TokenOptions) (string, string, error) {
 	grant := GrantAuthenticated
-	if options != nil && (options.Grant&GrantUnknown) != GrantUnknown {
+	if options != nil && options.Grant != GrantUnknown {
 		grant = options.Grant.Clean()
 	}
 	ttl := AccessTokenExpiration

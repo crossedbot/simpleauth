@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"net/http"
 	"testing"
+	"time"
 
 	jwt "github.com/crossedbot/simplejwt"
 	middleware "github.com/crossedbot/simplemiddleware"
@@ -39,8 +40,11 @@ func TestGenerateTokens(t *testing.T) {
 		UserId:    "abc123",
 		UserType:  models.BaseUserType.String(),
 	}
+
+	// Basic usage
+	options := &TokenOptions{}
 	tkn, rTkn, err := GenerateTokens(user, []byte(testPublicKey),
-		[]byte(testPrivateKey), nil)
+		[]byte(testPrivateKey), options)
 	require.Nil(t, err)
 	parsedTkn, err := jwt.Parse(tkn)
 	require.Nil(t, err)
@@ -50,7 +54,52 @@ func TestGenerateTokens(t *testing.T) {
 	require.Nil(t, err)
 	err = parsedRTkn.Valid([]byte(testPublicKey))
 	require.Nil(t, err)
-	// TODO more test cases for grants
+	require.Equal(t, user.UserId,
+		parsedTkn.Claims.Get(middleware.ClaimUserId))
+	require.Equal(t, GrantAuthenticated.String(),
+		parsedTkn.Claims.Get(middleware.ClaimGrant))
+	require.Equal(t, user.UserId,
+		parsedRTkn.Claims.Get(middleware.ClaimUserId))
+	require.Equal(t, GrantUsersRefresh.String(),
+		parsedRTkn.Claims.Get(middleware.ClaimGrant))
+
+	// Options usage
+	options.Grant = GrantOTPValidate
+	options.TTL = TransactionTokenExpiration
+	options.RefreshTTL = 1 * time.Minute
+	options.SkipRefresh = false
+	tkn, rTkn, err = GenerateTokens(user, []byte(testPublicKey),
+		[]byte(testPrivateKey), options)
+	require.Nil(t, err)
+	parsedTkn, err = jwt.Parse(tkn)
+	require.Nil(t, err)
+	err = parsedTkn.Valid([]byte(testPublicKey))
+	require.Nil(t, err)
+	parsedRTkn, err = jwt.Parse(rTkn)
+	require.Nil(t, err)
+	err = parsedRTkn.Valid([]byte(testPublicKey))
+	require.Nil(t, err)
+	require.Equal(t, user.UserId,
+		parsedTkn.Claims.Get(middleware.ClaimUserId))
+	require.Equal(t, GrantOTPValidate.String(),
+		parsedTkn.Claims.Get(middleware.ClaimGrant))
+	require.Equal(t, user.UserId,
+		parsedRTkn.Claims.Get(middleware.ClaimUserId))
+	require.Equal(t, GrantUsersRefresh.String(),
+		parsedRTkn.Claims.Get(middleware.ClaimGrant))
+
+	// Skipping a refresh token
+	options.SkipRefresh = true
+	tkn, rTkn, err = GenerateTokens(user, []byte(testPublicKey),
+		[]byte(testPrivateKey), options)
+	require.Nil(t, err)
+	require.Equal(t, "", rTkn)
+	err = parsedTkn.Valid([]byte(testPublicKey))
+	require.Nil(t, err)
+	require.Equal(t, user.UserId,
+		parsedTkn.Claims.Get(middleware.ClaimUserId))
+	require.Equal(t, GrantOTPValidate.String(),
+		parsedTkn.Claims.Get(middleware.ClaimGrant))
 }
 
 func TestDecodeTotp(t *testing.T) {

@@ -5,6 +5,8 @@ import (
 	"strings"
 )
 
+// Grant represents an access grant for interacting with the authentication
+// service.
 type Grant uint32
 
 const (
@@ -29,6 +31,7 @@ const (
 	GrantMax  Grant = 0xFFFFFFFF
 )
 
+// GrantStrings map a basic access grant to a string representation.
 var GrantStrings = map[Grant]string{
 	GrantUnknown:      "unknown",
 	GrantNone:         "none",
@@ -38,6 +41,8 @@ var GrantStrings = map[Grant]string{
 	GrantUsersRefresh: "users-refresh",
 }
 
+// ToGrant returns an access grant for the given string. The string may be
+// comma-separated to include multiple grants; E.g. "otp-validate,otp-qr".
 func ToGrant(s string) (Grant, error) {
 	var grant Grant
 	parts := strings.Split(s, ",")
@@ -58,6 +63,8 @@ func ToGrant(s string) (Grant, error) {
 	return grant, nil
 }
 
+// Clean returns a grant "cleansed" of unused/reserved bits. If the grant
+// contains a self-terminating grant (E.g. GrantNone), that is returned instead.
 func (g Grant) Clean() Grant {
 	if (g & GrantNone) == GrantNone {
 		return GrantNone
@@ -65,6 +72,7 @@ func (g Grant) Clean() Grant {
 	return g & GrantAuthenticated
 }
 
+// String returns the comma-separated string representation of the access grant.
 func (g Grant) String() string {
 	var grants []string
 	var i uint32 = 0
