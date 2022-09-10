@@ -11,6 +11,7 @@ import (
 )
 
 const (
+	// Validation constants
 	MaxNameSize            = 255
 	MaxValueSize           = 4096
 	MaxEmailLocalPartSize  = 64
@@ -33,6 +34,7 @@ var (
 	ErrorInvalidOptions      = errors.New("Options contain invalid key-value pair")
 )
 
+// User models a user in the authentication service.
 type User struct {
 	ID           primitive.ObjectID `bson:"_id" json:"-"`
 	FirstName    string             `bson:"first_name" json:"first_name"`
@@ -52,6 +54,7 @@ type User struct {
 	Options      map[string]string  `bson:"options" json:"options"`
 }
 
+// Valid returns nil when the user is valid, otherwise an error is returned.
 func (u User) Valid() error {
 	if len(u.FirstName) > MaxNameSize {
 		return ErrorInvalidName
@@ -74,10 +77,12 @@ func (u User) Valid() error {
 	return nil
 }
 
+// ValidUsername returns true if the given username is valid.
 func ValidUsername(username string) bool {
 	return UsernameRe.MatchString(username)
 }
 
+// ValidEmailAddress return true if the given email address is valid.
 func ValidEmailAddress(email string) bool {
 	if EmailAddressRe.MatchString(email) {
 		idx := strings.LastIndex(email, "@")
@@ -90,10 +95,12 @@ func ValidEmailAddress(email string) bool {
 	return false
 }
 
+// ValidPhonenumber returns true if the given phonenumber is valid.
 func ValidPhonenumber(phone string) bool {
 	return PhoneRe.MatchString(phone)
 }
 
+// ValidOptions returns true if the map options are valid.
 func ValidOptions(options map[string]string) bool {
 	for k, v := range options {
 		if len(k) > MaxNameSize || len(v) > MaxValueSize {
@@ -103,22 +110,26 @@ func ValidOptions(options map[string]string) bool {
 	return true
 }
 
+// Users represents a list of users.
 type Users struct {
 	Total int    `json:"total_count"`
 	Users []User `json:"user_items"`
 }
 
+// Login represents a login request.
 type Login struct {
 	Name     string `json:"name"`
 	Password string `json:"password"`
 }
 
+// Totp represents a timed-based OTP.
 type Totp struct {
 	Enabled bool   `json:"enabled"`
 	Otp     string `json:"otp"`
 	Qr      []byte `json:"qr"`
 }
 
+// AccessToken represents an access and refresh tokens.
 type AccessToken struct {
 	Token        string `json:"token"`
 	RefreshToken string `json:"refresh_token"`

@@ -7,6 +7,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
+// New returns a MongoDB client connected to the database at the given URI.
 func New(ctx context.Context, uri string) (*mongo.Client, error) {
 	client, err := mongo.NewClient(options.Client().ApplyURI(uri))
 	if err != nil {

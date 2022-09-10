@@ -7,6 +7,7 @@ import (
 	middleware "github.com/crossedbot/simplemiddleware"
 )
 
+// Routes represent the authentication HTTP service routes.
 var Routes = []server.Route{
 	server.Route{
 		Handler:          Login,

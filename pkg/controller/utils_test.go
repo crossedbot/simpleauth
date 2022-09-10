@@ -13,6 +13,7 @@ import (
 	"github.com/sec51/twofactor"
 	"github.com/stretchr/testify/require"
 
+	"github.com/crossedbot/simpleauth/pkg/grants"
 	"github.com/crossedbot/simpleauth/pkg/models"
 )
 
@@ -56,15 +57,15 @@ func TestGenerateTokens(t *testing.T) {
 	require.Nil(t, err)
 	require.Equal(t, user.UserId,
 		parsedTkn.Claims.Get(middleware.ClaimUserId))
-	require.Equal(t, GrantAuthenticated.String(),
+	require.Equal(t, grants.GrantAuthenticated.String(),
 		parsedTkn.Claims.Get(middleware.ClaimGrant))
 	require.Equal(t, user.UserId,
 		parsedRTkn.Claims.Get(middleware.ClaimUserId))
-	require.Equal(t, GrantUsersRefresh.String(),
+	require.Equal(t, grants.GrantUsersRefresh.String(),
 		parsedRTkn.Claims.Get(middleware.ClaimGrant))
 
 	// Options usage
-	options.Grant = GrantOTPValidate
+	options.Grant = grants.GrantOTPValidate
 	options.TTL = TransactionTokenExpiration
 	options.RefreshTTL = 1 * time.Minute
 	options.SkipRefresh = false
@@ -81,11 +82,11 @@ func TestGenerateTokens(t *testing.T) {
 	require.Nil(t, err)
 	require.Equal(t, user.UserId,
 		parsedTkn.Claims.Get(middleware.ClaimUserId))
-	require.Equal(t, GrantOTPValidate.String(),
+	require.Equal(t, grants.GrantOTPValidate.String(),
 		parsedTkn.Claims.Get(middleware.ClaimGrant))
 	require.Equal(t, user.UserId,
 		parsedRTkn.Claims.Get(middleware.ClaimUserId))
-	require.Equal(t, GrantUsersRefresh.String(),
+	require.Equal(t, grants.GrantUsersRefresh.String(),
 		parsedRTkn.Claims.Get(middleware.ClaimGrant))
 
 	// Skipping a refresh token
@@ -98,7 +99,7 @@ func TestGenerateTokens(t *testing.T) {
 	require.Nil(t, err)
 	require.Equal(t, user.UserId,
 		parsedTkn.Claims.Get(middleware.ClaimUserId))
-	require.Equal(t, GrantOTPValidate.String(),
+	require.Equal(t, grants.GrantOTPValidate.String(),
 		parsedTkn.Claims.Get(middleware.ClaimGrant))
 }
 
@@ -142,17 +143,19 @@ func TestContainsGrant(t *testing.T) {
 	req, err := http.NewRequest(http.MethodGet, "hello.world/test", nil)
 	require.Nil(t, err)
 	ctx := req.Context()
-	ctx = context.WithValue(ctx, middleware.ClaimGrant, GrantAuthenticated.String())
+	ctx = context.WithValue(ctx, middleware.ClaimGrant,
+		grants.GrantAuthenticated.String())
 	req = req.WithContext(ctx)
-	require.Nil(t, ContainsGrant(GrantOTP, req))
-	require.Nil(t, ContainsGrant(GrantOTPValidate, req))
-	require.Nil(t, ContainsGrant(GrantUsersRefresh, req))
+	require.Nil(t, ContainsGrant(grants.GrantOTP, req))
+	require.Nil(t, ContainsGrant(grants.GrantOTPValidate, req))
+	require.Nil(t, ContainsGrant(grants.GrantUsersRefresh, req))
 
 	ctx = req.Context()
-	ctx = context.WithValue(ctx, middleware.ClaimGrant, GrantUsersRefresh.String())
+	ctx = context.WithValue(ctx, middleware.ClaimGrant,
+		grants.GrantUsersRefresh.String())
 	req = req.WithContext(ctx)
-	require.NotNil(t, ContainsGrant(GrantOTP, req))
-	require.NotNil(t, ContainsGrant(GrantOTPValidate, req))
-	require.NotNil(t, ContainsGrant(GrantAuthenticated, req))
-	require.Nil(t, ContainsGrant(GrantUsersRefresh, req))
+	require.NotNil(t, ContainsGrant(grants.GrantOTP, req))
+	require.NotNil(t, ContainsGrant(grants.GrantOTPValidate, req))
+	require.NotNil(t, ContainsGrant(grants.GrantAuthenticated, req))
+	require.Nil(t, ContainsGrant(grants.GrantUsersRefresh, req))
 }

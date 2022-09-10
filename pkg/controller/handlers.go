@@ -9,9 +9,11 @@ import (
 	"github.com/crossedbot/common/golang/server"
 	middleware "github.com/crossedbot/simplemiddleware"
 
+	"github.com/crossedbot/simpleauth/pkg/grants"
 	"github.com/crossedbot/simpleauth/pkg/models"
 )
 
+// Login handles the response for a user login request.
 func Login(w http.ResponseWriter, r *http.Request, p server.Parameters) {
 	var login models.Login
 	if err := json.NewDecoder(r.Body).Decode(&login); err != nil {
@@ -70,6 +72,7 @@ func Login(w http.ResponseWriter, r *http.Request, p server.Parameters) {
 	server.JsonResponse(w, &tkn, http.StatusOK)
 }
 
+// SignUp handles the response to a user signup request.
 func SignUp(w http.ResponseWriter, r *http.Request, p server.Parameters) {
 	var user models.User
 	if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
@@ -130,8 +133,9 @@ func SignUp(w http.ResponseWriter, r *http.Request, p server.Parameters) {
 	server.JsonResponse(w, &tkn, http.StatusCreated)
 }
 
+// SetTotp handles the response to a request to enable TOTP for a user.
 func SetTotp(w http.ResponseWriter, r *http.Request, p server.Parameters) {
-	if err := ContainsGrant(GrantSetOTP, r); err != nil {
+	if err := ContainsGrant(grants.GrantSetOTP, r); err != nil {
 		server.JsonResponse(w, server.Error{
 			Code:    server.ErrUnauthorizedCode,
 			Message: "Not authorized to perform this action",
@@ -166,8 +170,9 @@ func SetTotp(w http.ResponseWriter, r *http.Request, p server.Parameters) {
 	server.JsonResponse(w, &newTotp, http.StatusOK)
 }
 
+// ValidateOtp handles the response to a request to validate a user's OTP.
 func ValidateOtp(w http.ResponseWriter, r *http.Request, p server.Parameters) {
-	if err := ContainsGrant(GrantOTPValidate, r); err != nil {
+	if err := ContainsGrant(grants.GrantOTPValidate, r); err != nil {
 		server.JsonResponse(w, server.Error{
 			Code:    server.ErrUnauthorizedCode,
 			Message: "Not authorized to perform this action",
@@ -198,8 +203,10 @@ func ValidateOtp(w http.ResponseWriter, r *http.Request, p server.Parameters) {
 	server.JsonResponse(w, &tkn, http.StatusOK)
 }
 
+// GetOtpQr handles the response for a request to retrieve the QR image of a
+// users OTP.
 func GetOtpQr(w http.ResponseWriter, r *http.Request, p server.Parameters) {
-	if err := ContainsGrant(GrantOTPQR, r); err != nil {
+	if err := ContainsGrant(grants.GrantOTPQR, r); err != nil {
 		server.JsonResponse(w, server.Error{
 			Code:    server.ErrUnauthorizedCode,
 			Message: "Not authorized to perform this action",
@@ -224,8 +231,9 @@ func GetOtpQr(w http.ResponseWriter, r *http.Request, p server.Parameters) {
 	fmt.Fprintf(w, "%s", qr)
 }
 
+// RefreshToken handles the response for a request to refresh access tokens.
 func RefreshToken(w http.ResponseWriter, r *http.Request, p server.Parameters) {
-	if err := ContainsGrant(GrantUsersRefresh, r); err != nil {
+	if err := ContainsGrant(grants.GrantUsersRefresh, r); err != nil {
 		server.JsonResponse(w, server.Error{
 			Code:    server.ErrUnauthorizedCode,
 			Message: "Not authorized to perform this action",
@@ -248,6 +256,7 @@ func RefreshToken(w http.ResponseWriter, r *http.Request, p server.Parameters) {
 	server.JsonResponse(w, &refreshedToken, http.StatusOK)
 }
 
+// GetJwk handles the response to a request for the service's JSON web key.
 func GetJwk(w http.ResponseWriter, r *http.Request, p server.Parameters) {
 	jwks, err := V1().GetJwks()
 	if err != nil {

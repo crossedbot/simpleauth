@@ -22,10 +22,12 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 
 	"github.com/crossedbot/simpleauth/pkg/database"
+	"github.com/crossedbot/simpleauth/pkg/grants"
 	"github.com/crossedbot/simpleauth/pkg/models"
 )
 
 const (
+	// Defaults
 	DefaultTotpIssuer   = "simpleauth"
 	DefaultTotpDigits   = 6
 	DefaultPrivateKey   = "~/.simpleauth/simpleauth.key"
@@ -34,6 +36,7 @@ const (
 )
 
 var (
+	// Errors
 	ErrorUserNotFound     = errors.New("User not found")
 	ErrorUserExists       = errors.New("The username, email or phone number already exists")
 	ErrorBadCredentials   = errors.New("The username or password is incorrect")
@@ -42,32 +45,61 @@ var (
 	ErrorTotpNotFound     = errors.New("TOTP not set for user")
 )
 
+// Controller represents an interface to an authentication service.
 type Controller interface {
-	// Control functions
+	// SetDatabase sets the user database for the authentication service at
+	// the given address.
 	SetDatabase(addr string) error
+
+	// SetAuthPrivateKey sets the JWT private key for generating access
+	// tokens.
 	SetAuthPrivateKey(io.Reader) error
+
+	// SetAuthCert sets the authentication service JSON web key for
+	// validating access tokens.
 	SetAuthCert(io.Reader) error
+
+	// SetTotpIssuer sets the TOTP issuer for the authentication service.
 	SetTotpIssuer(issuer string)
 
-	// Handler functions
+	// Login returns a new AccessToken for the given login request.
+	// Effectively, logging in the user for as long the token remains valid.
 	Login(models.Login) (models.AccessToken, error)
+
+	// SignUp adds the given user to the authentication service and returns
+	// a new Accesstoken.
 	SignUp(models.User) (models.AccessToken, error)
+
+	// SetTotp sets the TOTP for the given user ID. Implementations, should
+	// only enable/disable TOTP for the given user.
 	SetTotp(id string, totp models.Totp) (models.Totp, error)
+
+	// ValidateOtp returns a new AccessToken if the given OTP was valid for
+	// the user ID.
 	ValidateOtp(id, otp string) (models.AccessToken, error)
+
+	// GetOtpQr returns an image of the QR code for the given user ID.
 	GetOtpQr(id string) ([]byte, error)
+
+	// RefreshToken returns a new AccessToken for the given user ID.
+	// Effectively, refreshing the authenticated access.
 	RefreshToken(id string) (models.AccessToken, error)
+
+	// GetJwks returns the JSON web key of the authentication service.
 	GetJwks() (jwk.Jwks, error)
 }
 
+// controller implements the authentication service interface.
 type controller struct {
 	ctx        context.Context
-	client     *mongo.Client
-	privateKey []byte
-	publicKey  []byte
-	cert       jwk.Certificate
-	issuer     string
+	client     *mongo.Client   // MongoDB client
+	privateKey []byte          // JSON web token private key
+	publicKey  []byte          // JSON web token public key
+	cert       jwk.Certificate // JSON-Web key certificate
+	issuer     string          // TOTP issuer
 }
 
+// Config represents the configuration of an authentication service controller.
 type Config struct {
 	DatabaseAddr string `toml:"database_addr"`
 	PrivateKey   string `toml:"private_key"`
@@ -77,8 +109,14 @@ type Config struct {
 
 var control Controller
 var controllerOnce sync.Once
+
+// V1 is version 1 of an authentication service controller.
 var V1 = func() Controller {
+	// XXX Probably should change the name of this. I am unlikely to keep
+	// previous versions of the service around.
+
 	controllerOnce.Do(func() {
+		// XXX this should really be split up into functions
 		var cfg Config
 		if err := config.Load(&cfg); err != nil {
 			panic(err)
@@ -138,6 +176,7 @@ var V1 = func() Controller {
 	return control
 }
 
+// New returns a new Controller.
 func New(
 	ctx context.Context,
 	client *mongo.Client,
@@ -216,7 +255,7 @@ func (c *controller) Login(login models.Login) (models.AccessToken, error) {
 	if foundUser.TotpEnabled {
 		// If TOTP is enabled then we only need a short-lived access
 		// token to complete the OTP transaction.
-		options.Grant = GrantOTPValidate
+		options.Grant = grants.GrantOTPValidate
 		options.TTL = TransactionTokenExpiration
 		options.SkipRefresh = true
 	}
@@ -411,10 +450,12 @@ func (c *controller) GetJwks() (jwk.Jwks, error) {
 	return jwk.Jwks{Keys: []jwk.Jwk{webKey}}, err
 }
 
+// Users returns the "users" collection of the "auth" database.
 func (c *controller) Users() *mongo.Collection {
 	return c.client.Database("auth").Collection("users")
 }
 
+// UpdateTokens sets the token and refresh token for the given user ID.
 func (c *controller) UpdateTokens(token, refreshToken, userId string) error {
 	users := c.Users()
 	now, _ := time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
@@ -433,6 +474,7 @@ func (c *controller) UpdateTokens(token, refreshToken, userId string) error {
 	return err
 }
 
+// UpdateTotp sets the TOTP for the given user ID.
 func (c *controller) UpdateTotp(enabled bool, totp, userId string) error {
 	users := c.Users()
 	now, _ := time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
