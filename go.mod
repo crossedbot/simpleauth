@@ -5,7 +5,7 @@ go 1.17
 require (
 	github.com/crossedbot/common v0.0.0-20211223020742-f8539997ff53
 	github.com/crossedbot/simplejwt v0.0.0-20211223022943-c26a47fa2a1d
-	github.com/crossedbot/simplemiddleware v0.0.0-20211223022025-c8a915f6090e
+	github.com/crossedbot/simplemiddleware v0.0.0-20220910222832-b0ab90779ced
 	github.com/sec51/twofactor v1.0.0
 	github.com/stretchr/testify v1.7.0
 	go.mongodb.org/mongo-driver v1.8.1
@@ -33,5 +33,5 @@ require (
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c // indirect
 	golang.org/x/sys v0.0.0-20211216021012-1d35b9e2eb4e // indirect
 	golang.org/x/text v0.3.7 // indirect
-	gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c // indirect
+	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect
 )

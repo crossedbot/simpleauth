@@ -8,8 +8,8 @@ github.com/crossedbot/common v0.0.0-20211223020742-f8539997ff53/go.mod h1:QnY2Zn
 github.com/crossedbot/simplejwt v0.0.0-20200913211407-6ac213482a8a/go.mod h1:51uG03QCyeSqEzu6bKedAP5rCQtD4gPB/CPbAyHezBE=
 github.com/crossedbot/simplejwt v0.0.0-20211223022943-c26a47fa2a1d h1:96qjWAwgOtXPrfFacOZlFGF3jaQBP2Mh0g7WsgB69yY=
 github.com/crossedbot/simplejwt v0.0.0-20211223022943-c26a47fa2a1d/go.mod h1:EN2g0WwCOpfR433fagNVn8NL4znMZ7apYmEPngOmeC4=
-github.com/crossedbot/simplemiddleware v0.0.0-20211223022025-c8a915f6090e h1:69LQurU29JNGkQQGPdEh2JKWDs8uym1RPF+Px4WQI/Y=
-github.com/crossedbot/simplemiddleware v0.0.0-20211223022025-c8a915f6090e/go.mod h1:glxbs2Q0I1q06sVjpSl6ZNu8LbCv8g3CV+b6iRg55Hs=
+github.com/crossedbot/simplemiddleware v0.0.0-20220910222832-b0ab90779ced h1:M/2mlsichoBNvPzcdHsxetMEsoLiFyuqp5YB74zo29E=
+github.com/crossedbot/simplemiddleware v0.0.0-20220910222832-b0ab90779ced/go.mod h1:glxbs2Q0I1q06sVjpSl6ZNu8LbCv8g3CV+b6iRg55Hs=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
@@ -119,5 +119,6 @@ golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543/go.mod h1:I/5z698sn9Ka8T
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
 gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127 h1:qIbj1fsPNlZgppZ+VLlY7N33q108Sa+fhmuc+sWQYwY=
 gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
-gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c h1:dUUwHk2QECo/6vqA44rthZ8ie2QXMNeKRTHCNY2nXvo=
 gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c/go.mod h1:K4uyk7z7BCEPqu6E+C64Yfv1cQ7kz7rIZviUmN+EgEM=
+gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b h1:h8qDotaEPuJATrMmW04NCwg7v22aHH28wwpauUhK9Oo=
+gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b/go.mod h1:K4uyk7z7BCEPqu6E+C64Yfv1cQ7kz7rIZviUmN+EgEM=

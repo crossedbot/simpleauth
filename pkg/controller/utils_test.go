@@ -1,14 +1,19 @@
 package controller
 
 import (
+	"context"
 	"crypto"
 	"encoding/base64"
+	"net/http"
 	"testing"
+	"time"
 
 	jwt "github.com/crossedbot/simplejwt"
+	middleware "github.com/crossedbot/simplemiddleware"
 	"github.com/sec51/twofactor"
 	"github.com/stretchr/testify/require"
 
+	"github.com/crossedbot/simpleauth/pkg/grants"
 	"github.com/crossedbot/simpleauth/pkg/models"
 )
 
@@ -36,7 +41,11 @@ func TestGenerateTokens(t *testing.T) {
 		UserId:    "abc123",
 		UserType:  models.BaseUserType.String(),
 	}
-	tkn, rTkn, err := GenerateTokens(user, []byte(testPublicKey), []byte(testPrivateKey))
+
+	// Basic usage
+	options := &TokenOptions{}
+	tkn, rTkn, err := GenerateTokens(user, []byte(testPublicKey),
+		[]byte(testPrivateKey), options)
 	require.Nil(t, err)
 	parsedTkn, err := jwt.Parse(tkn)
 	require.Nil(t, err)
@@ -46,6 +55,52 @@ func TestGenerateTokens(t *testing.T) {
 	require.Nil(t, err)
 	err = parsedRTkn.Valid([]byte(testPublicKey))
 	require.Nil(t, err)
+	require.Equal(t, user.UserId,
+		parsedTkn.Claims.Get(middleware.ClaimUserId))
+	require.Equal(t, grants.GrantAuthenticated.String(),
+		parsedTkn.Claims.Get(middleware.ClaimGrant))
+	require.Equal(t, user.UserId,
+		parsedRTkn.Claims.Get(middleware.ClaimUserId))
+	require.Equal(t, grants.GrantUsersRefresh.String(),
+		parsedRTkn.Claims.Get(middleware.ClaimGrant))
+
+	// Options usage
+	options.Grant = grants.GrantOTPValidate
+	options.TTL = TransactionTokenExpiration
+	options.RefreshTTL = 1 * time.Minute
+	options.SkipRefresh = false
+	tkn, rTkn, err = GenerateTokens(user, []byte(testPublicKey),
+		[]byte(testPrivateKey), options)
+	require.Nil(t, err)
+	parsedTkn, err = jwt.Parse(tkn)
+	require.Nil(t, err)
+	err = parsedTkn.Valid([]byte(testPublicKey))
+	require.Nil(t, err)
+	parsedRTkn, err = jwt.Parse(rTkn)
+	require.Nil(t, err)
+	err = parsedRTkn.Valid([]byte(testPublicKey))
+	require.Nil(t, err)
+	require.Equal(t, user.UserId,
+		parsedTkn.Claims.Get(middleware.ClaimUserId))
+	require.Equal(t, grants.GrantOTPValidate.String(),
+		parsedTkn.Claims.Get(middleware.ClaimGrant))
+	require.Equal(t, user.UserId,
+		parsedRTkn.Claims.Get(middleware.ClaimUserId))
+	require.Equal(t, grants.GrantUsersRefresh.String(),
+		parsedRTkn.Claims.Get(middleware.ClaimGrant))
+
+	// Skipping a refresh token
+	options.SkipRefresh = true
+	tkn, rTkn, err = GenerateTokens(user, []byte(testPublicKey),
+		[]byte(testPrivateKey), options)
+	require.Nil(t, err)
+	require.Equal(t, "", rTkn)
+	err = parsedTkn.Valid([]byte(testPublicKey))
+	require.Nil(t, err)
+	require.Equal(t, user.UserId,
+		parsedTkn.Claims.Get(middleware.ClaimUserId))
+	require.Equal(t, grants.GrantOTPValidate.String(),
+		parsedTkn.Claims.Get(middleware.ClaimGrant))
 }
 
 func TestDecodeTotp(t *testing.T) {
@@ -82,4 +137,25 @@ func TestEncodeTotp(t *testing.T) {
 	actual, err := totp2.ToBytes()
 	require.Nil(t, err)
 	require.Equal(t, expected, actual)
+}
+
+func TestContainsGrant(t *testing.T) {
+	req, err := http.NewRequest(http.MethodGet, "hello.world/test", nil)
+	require.Nil(t, err)
+	ctx := req.Context()
+	ctx = context.WithValue(ctx, middleware.ClaimGrant,
+		grants.GrantAuthenticated.String())
+	req = req.WithContext(ctx)
+	require.Nil(t, ContainsGrant(grants.GrantOTP, req))
+	require.Nil(t, ContainsGrant(grants.GrantOTPValidate, req))
+	require.Nil(t, ContainsGrant(grants.GrantUsersRefresh, req))
+
+	ctx = req.Context()
+	ctx = context.WithValue(ctx, middleware.ClaimGrant,
+		grants.GrantUsersRefresh.String())
+	req = req.WithContext(ctx)
+	require.NotNil(t, ContainsGrant(grants.GrantOTP, req))
+	require.NotNil(t, ContainsGrant(grants.GrantOTPValidate, req))
+	require.NotNil(t, ContainsGrant(grants.GrantAuthenticated, req))
+	require.Nil(t, ContainsGrant(grants.GrantUsersRefresh, req))
 }
