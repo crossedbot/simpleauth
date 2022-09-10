@@ -8,8 +8,8 @@ github.com/crossedbot/common v0.0.0-20211223020742-f8539997ff53/go.mod h1:QnY2Zn
 github.com/crossedbot/simplejwt v0.0.0-20200913211407-6ac213482a8a/go.mod h1:51uG03QCyeSqEzu6bKedAP5rCQtD4gPB/CPbAyHezBE=
 github.com/crossedbot/simplejwt v0.0.0-20211223022943-c26a47fa2a1d h1:96qjWAwgOtXPrfFacOZlFGF3jaQBP2Mh0g7WsgB69yY=
 github.com/crossedbot/simplejwt v0.0.0-20211223022943-c26a47fa2a1d/go.mod h1:EN2g0WwCOpfR433fagNVn8NL4znMZ7apYmEPngOmeC4=
-github.com/crossedbot/simplemiddleware v0.0.0-20220909024937-9b29fcd6efda h1:EvYi6KtAMCVVMxQMgnOYQ4QkUNDBRdeHIu2BjDWmOaY=
-github.com/crossedbot/simplemiddleware v0.0.0-20220909024937-9b29fcd6efda/go.mod h1:glxbs2Q0I1q06sVjpSl6ZNu8LbCv8g3CV+b6iRg55Hs=
+github.com/crossedbot/simplemiddleware v0.0.0-20220910222832-b0ab90779ced h1:M/2mlsichoBNvPzcdHsxetMEsoLiFyuqp5YB74zo29E=
+github.com/crossedbot/simplemiddleware v0.0.0-20220910222832-b0ab90779ced/go.mod h1:glxbs2Q0I1q06sVjpSl6ZNu8LbCv8g3CV+b6iRg55Hs=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=

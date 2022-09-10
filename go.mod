@@ -5,7 +5,7 @@ go 1.17
 require (
 	github.com/crossedbot/common v0.0.0-20211223020742-f8539997ff53
 	github.com/crossedbot/simplejwt v0.0.0-20211223022943-c26a47fa2a1d
-	github.com/crossedbot/simplemiddleware v0.0.0-20220909024937-9b29fcd6efda
+	github.com/crossedbot/simplemiddleware v0.0.0-20220910222832-b0ab90779ced
 	github.com/sec51/twofactor v1.0.0
 	github.com/stretchr/testify v1.7.0
 	go.mongodb.org/mongo-driver v1.8.1
