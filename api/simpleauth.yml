@@ -1,0 +1,389 @@
+openapi: '3.0.2'
+info:
+  title: Simple Authentication Service
+  version: '0.0.1'
+  description: |
+    Simple authentication service API for user management
+servers:
+  - url: https://api.server.test/v1
+paths:
+  /users/login:
+    post:
+      summary: Login User
+      description: Login existing user and generate new authentication tokens
+      tags:
+        - users
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Login'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessToken'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /users/signup:
+    post:
+      summary: Signup New User
+      description: Signup and create a new user object
+      tags:
+        - users
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/User'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessToken'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /users/refresh:
+    get:
+      summary: Refresh Access Token
+      description: Refresh an expired access token
+      tags:
+        - users
+      security:
+        - accessToken: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessToken'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /otp:
+    post:
+      summary: Enable TOTP
+      description: Enable/Disable TOTP authentication for user
+      tags:
+        - otp
+      security:
+        - accessToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Totp'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Totp'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /otp/validate/{otp}:
+    parameters:
+      - name: otp
+        in: path
+        required: true
+        schema:
+          type: string
+        description: OTP to be validated
+    get:
+      summary: Validate OTP
+      description: Validate OTP for two-factor authentication
+      tags:
+        - otp
+      security:
+        - accessToken: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessToken'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /otp/qr:
+    get:
+      summary: Get QR code
+      description: Get the user's QR code for their TOTP
+      tags:
+        - otp
+      security:
+        - accessToken: []
+      responses:
+        '200':
+          description: OK
+          content:
+            image/png:
+              schema:
+                type: string
+                format: binary
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /.well-known/jwk.json:
+    get:
+      summary: Get JWK JSON
+      description: Get the JSON Web Keys
+      tags:
+        - .well-known
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JWKs'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+components:
+  schemas:
+    Login:
+      description: Login object with Email and Password
+      type: object
+      required:
+        - name
+        - password
+      properties:
+        name:
+          description: Email/Username of the user attempting to login
+          type: string
+          example: hello@world.com
+        password:
+          description: Password for user attempting to login
+          type: string
+          example: iamapassword
+    AccessToken:
+      description: Access token object with OTP flag
+      type: object
+      required:
+        - token
+        - refresh_token
+        - otp_required
+      properties:
+        token:
+          description: Access token generated for user
+          type: string
+          example: "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE2MTk5OTk5NjcsInVpZCI6Im15dXNlcmlkIDozIn0.YXyEnRXoaBEZq-JHtRuOz6OrbD2Lq3SiwJH9NgU593LrSRAdNlIQHrGFOPN5rxJdyFAb-CJ-Om3bV3UG2tIrF0bp2mRMY6NBs04ErZLVpmj28-nQmjvUb4ooxZGenc8dDwVIHJrYHbPnC29sBnpr1Hc_p7pJiB28ayeoBwwMmuv5-5mltaHM2758PXuaci1C9hzMzRw9V0UhYkcWKyFHDSLf6HG1rb8cvQTrJdvYGVXUfebp7K64BMYhk2_H6I5kgrg78dqQ7-SayObxd2yIQdCGUL3QTspcBLp2eC6MOWMEE_25LUCCKjePPOhc0-2cZqXeU5j2Ul6HhzcgiGOi5A"
+        refresh_token:
+          description: Refresh token generated for user
+          type: string
+          example: "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE2MjAwMDAwMjMsInVpZCI6ImFiYzEyMyJ9.RGuYuMZzJM_XzBk8Q_xAcbMJDe2QNHryvvysGPs3xQZMkmuh-Q_RcD-BwAsWfkHKC6yc78VcBfdQ4-V1z77S_VgTzwfIPuOfg9urj5pXRJ_GPkW3kYPRynNsPBCS0MvWlZunaaSk01-2AWbtqH9KngIQQh4vZ-hLtBuFuZ1l5w0LCWieEveHVCAHyjajdkUemetdUgFqZWzRAhl9vm5zgW6vUYxDeRh8vluSubLvhvBlaycrj0jNWqg2vCxbANXi1uudzj2qNvdXeuzAYipAJ__r2ehqP9Ot4znReF_xrjsM6uANPEHpB8Az9p-BPuYngoAqJWMDAx7m1U9fMxxTLA"
+        otp_required:
+          description: Indicates OTP is requried for user
+          type: boolean
+          example: true
+    User:
+      description: User object
+      type: object
+      required:
+        - username
+        - password
+      properties:
+        username:
+          description: Username of the user
+          type: string
+          example: hello.world
+        password:
+          description: Password of the user
+          type: string
+          example: iamapassword
+        user_type:
+          description: User type of the user
+          type: string
+          enum: ["USER", "GUEST", "ADMIN"]
+          default: "USER"
+        email:
+          description: Email address of the user
+          type: string
+          example: hello@world.com
+        first_name:
+          description: First name of the user
+          type: string
+          example: John
+        last_name:
+          description: Last name of the user
+          type: string
+          example: Doe
+        phone:
+          description: Phone of the user
+          type: string
+          example: '555-444-333'
+        totp_enabled:
+          description: Indicates OTP is requried for user
+          type: boolean
+          example: true
+        options:
+          description: Map of additional options to store with the user
+          type: object
+          additionalProperties:
+            type: string
+          example:
+            app_id: "99986338-1113-4706-8302-4420da6158aa"
+            local_id: "hello.world"
+    Totp:
+      description: TOTP object
+      type: object
+      required:
+        - enabled
+      properties:
+        enabled:
+          description: Indicates TOTP is enabled
+          type: boolean
+          example: true
+        otp:
+          description: Current OTP of user
+          type: string
+          example: 123456
+        qr:
+          description: QR code of TOTP
+          type: string
+          format: byte
+    JWKs:
+      description: List of JSON Web Keys
+      type: object
+      required:
+        - keys
+      properties:
+        keys:
+          description: An array of JWK results
+          type: array
+          items:
+            $ref: '#/components/schemas/JWK'
+          uniqueItems: true
+    JWK:
+      description: JWK object
+      type: object
+      required:
+        - alg
+        - kty
+        - kid
+        - use
+        - n
+        - e
+        - x5c
+        - x5t
+      properties:
+        alg:
+          description: Version of cryptographic algorithm
+          type: string
+          example: RSA256
+        kty:
+          description: Cryptographic algorithm
+          type: string
+          example: RSA
+        kid:
+          description: Key ID
+          type: string
+          example: C16dqSBbp-E
+        use:
+          description: Use of key
+          type: string
+          example: sig
+        n:
+          description: The modulas of the RSA key
+          type: string
+          example: 2XKVUjV0DE37wFJyJway29vxVGT9Xh23gHxdeuVV7IIX-TJgrzSdZ5YMpAv4IdCgSJSA-jPeaNDJlvrvywr_naLH4_f8i1xqdLecc4Yei2VDrFGIghyhEgr5QEBNCCR0kNrETnsRFvLalgH1e1XANevRjR7tiuKCHmvdT7WH8-svr0Sf6Ztt5pT-Q1UQ8hpEfYquQpuX-MpGABnNvWj_mrbvEu9Bg8uvpHucxQsTFvUfxho_g536eYWnV6rU23x2xfsUqoPQqME4La7a-9CQOf9Ga0QWUDJhOJ6noAg2j0tux2HcgYc3-21yWnYK43Ph9zSRzCT8Pou6ylq_IM0YQw
+        e:
+          description: The exponent of the RSA key
+          type: string
+          example: AQABAA
+        x5c:
+          description: The x.509 certificate chain
+          type: array
+          items:
+            type: string
+          example: [MIIDFzCCAf8CFArpekmt3PBEGpQuAyTpLIdmU3EGMA0GCSqGSIb3DQEBCwUAMEgx\nCzAJBgNVBAYTAkNBMRAwDgYDVQQIDAdPbnRhcmlvMRIwEAYDVQQHDAlLaXRjaGVu\nZXIxEzARBgNVBAoMClNpbXBsZUF1dGgwHhcNMjEwNTA0MDAzODQyWhcNMjIwNTA0\nMDAzODQyWjBIMQswCQYDVQQGEwJDQTEQMA4GA1UECAwHT250YXJpbzESMBAGA1UE\nBwwJS2l0Y2hlbmVyMRMwEQYDVQQKDApTaW1wbGVBdXRoMIIBIjANBgkqhkiG9w0B\nAQEFAAOCAQ8AMIIBCgKCAQEA2XKVUjV0DE37wFJyJway29vxVGT9Xh23gHxdeuVV\n7IIX+TJgrzSdZ5YMpAv4IdCgSJSA+jPeaNDJlvrvywr/naLH4/f8i1xqdLecc4Ye\ni2VDrFGIghyhEgr5QEBNCCR0kNrETnsRFvLalgH1e1XANevRjR7tiuKCHmvdT7WH\n8+svr0Sf6Ztt5pT+Q1UQ8hpEfYquQpuX+MpGABnNvWj/mrbvEu9Bg8uvpHucxQsT\nFvUfxho/g536eYWnV6rU23x2xfsUqoPQqME4La7a+9CQOf9Ga0QWUDJhOJ6noAg2\nj0tux2HcgYc3+21yWnYK43Ph9zSRzCT8Pou6ylq/IM0YQwIDAQABMA0GCSqGSIb3\nDQEBCwUAA4IBAQBG+ktDjOq9mvjdTsgmUZUy38sBL9/NB0iN+XfulkPurI3ieBgM\nQLUb6c+dO+MqX/+2vlYy+/Y2g/6jq9Sy/Gc+SITM7oWgky8IbyxdkE3k3cbpslfb\nbutr/fcsj0+K1SzZl6s89vyTxZxxEElyqScjQAg3v2lpxWpplzmoj7BQhi7SHIz5\nHkyzfdDbOlNLF0V/1Dhjkovib+HHwlaKsCyuPXFLhJyHQud0y1DhxLaJoo+sazfj\ntceo2/wc+ALHlGPecHlSrrS/MIXwfpDLKTPK9ylVdspVbKGtqC/akvmQVfBMaq9X\nMBpGEsOV6Zte/eICn1HTS147htUGQFjSNtun]
+        x5t:
+          description: Thumbprint of x.509 cert (SHA-1)
+          type: string
+          example: eM73uaeMoyj6bWGA5aWOWW2ENi0
+    Error:
+      description: Base error object
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+        message:
+          type: string
+
+  responses:
+    BadRequest:
+      description: Bad request (400)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Unauthorized (401); access token is missing or invalid
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: The specified resource was not found (404)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    InsufficientFunds:
+      description: Insufficient funds (409)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    InternalServerError:
+      description: Internal server error (500)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+  securitySchemes:
+      accessToken:
+        description: |
+          An opaque token is required to be sent with each request in the HTTP header:
+
+          - `Authorization: Bearer <access-token>`
+
+          The `access-token` should be generated per device, and the user should have the ability to revoke each token separately.
+        type: http
+        scheme: bearer
