@@ -3,9 +3,9 @@ module github.com/crossedbot/simpleauth
 go 1.19
 
 require (
-	github.com/crossedbot/common v0.0.0-20211227060111-08af6a662d96
-	github.com/crossedbot/simplejwt v0.0.0-20211223022943-c26a47fa2a1d
-	github.com/crossedbot/simplemiddleware v0.0.0-20220910222832-b0ab90779ced
+	github.com/crossedbot/common v0.0.0-20220911035328-a84c7bdd9808
+	github.com/crossedbot/simplejwt v0.0.0-20220911040611-a01d5377f0c2
+	github.com/crossedbot/simplemiddleware v0.0.0-20220911041252-7ca795fa3bd3
 	github.com/sec51/twofactor v1.0.0
 	github.com/stretchr/testify v1.8.0
 	go.mongodb.org/mongo-driver v1.10.2
