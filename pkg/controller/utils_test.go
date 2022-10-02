@@ -1,10 +1,8 @@
 package controller
 
 import (
-	"context"
 	"crypto"
 	"encoding/base64"
-	"net/http"
 	"testing"
 	"time"
 
@@ -137,25 +135,4 @@ func TestEncodeTotp(t *testing.T) {
 	actual, err := totp2.ToBytes()
 	require.Nil(t, err)
 	require.Equal(t, expected, actual)
-}
-
-func TestContainsGrant(t *testing.T) {
-	req, err := http.NewRequest(http.MethodGet, "hello.world/test", nil)
-	require.Nil(t, err)
-	ctx := req.Context()
-	ctx = context.WithValue(ctx, middleware.ClaimGrant,
-		grants.GrantAuthenticated.String())
-	req = req.WithContext(ctx)
-	require.Nil(t, ContainsGrant(grants.GrantOTP, req))
-	require.Nil(t, ContainsGrant(grants.GrantOTPValidate, req))
-	require.Nil(t, ContainsGrant(grants.GrantUsersRefresh, req))
-
-	ctx = req.Context()
-	ctx = context.WithValue(ctx, middleware.ClaimGrant,
-		grants.GrantUsersRefresh.String())
-	req = req.WithContext(ctx)
-	require.NotNil(t, ContainsGrant(grants.GrantOTP, req))
-	require.NotNil(t, ContainsGrant(grants.GrantOTPValidate, req))
-	require.NotNil(t, ContainsGrant(grants.GrantAuthenticated, req))
-	require.Nil(t, ContainsGrant(grants.GrantUsersRefresh, req))
 }

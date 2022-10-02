@@ -3,7 +3,6 @@ package controller
 import (
 	"encoding/base64"
 	"errors"
-	"net/http"
 	"time"
 
 	commoncrypto "github.com/crossedbot/common/golang/crypto"
@@ -23,11 +22,6 @@ const (
 	AccessTokenExpiration      = 1 * time.Hour
 	RefreshTokenExpiration     = 24 * time.Hour
 	TransactionTokenExpiration = 5 * time.Minute
-)
-
-var (
-	// Errors
-	ErrRequestGrant = errors.New("Request does not match grant")
 )
 
 // HashPassword returns the bcrypt hash of the given password using the default
@@ -130,21 +124,4 @@ func EncodeTotp(totp *twofactor.Totp) (string, error) {
 		return "", err
 	}
 	return base64.URLEncoding.EncodeToString(b), nil
-}
-
-// ContainsGrant return nil if the given request's context contains the given
-// access grant. Otherwise an error is returned.
-func ContainsGrant(grant grants.Grant, r *http.Request) error {
-	reqGrantStr, ok := r.Context().Value(middleware.ClaimGrant).(string)
-	if !ok {
-		return middleware.ErrGrantDataType
-	}
-	reqGrant, err := grants.ToGrant(reqGrantStr)
-	if err != nil {
-		return err
-	}
-	if (reqGrant & grant) != grant {
-		return ErrRequestGrant
-	}
-	return nil
 }

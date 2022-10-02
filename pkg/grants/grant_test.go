@@ -1,12 +1,36 @@
 package grants
 
 import (
+	"context"
 	"errors"
+	"net/http"
 	"strings"
 	"testing"
 
+	middleware "github.com/crossedbot/simplemiddleware"
 	"github.com/stretchr/testify/require"
 )
+
+func TestContainsGrant(t *testing.T) {
+	req, err := http.NewRequest(http.MethodGet, "hello.world/test", nil)
+	require.Nil(t, err)
+	ctx := req.Context()
+	ctx = context.WithValue(ctx, middleware.ClaimGrant,
+		GrantAuthenticated.String())
+	req = req.WithContext(ctx)
+	require.Nil(t, ContainsGrant(GrantOTP, req))
+	require.Nil(t, ContainsGrant(GrantOTPValidate, req))
+	require.Nil(t, ContainsGrant(GrantUsersRefresh, req))
+
+	ctx = req.Context()
+	ctx = context.WithValue(ctx, middleware.ClaimGrant,
+		GrantUsersRefresh.String())
+	req = req.WithContext(ctx)
+	require.NotNil(t, ContainsGrant(GrantOTP, req))
+	require.NotNil(t, ContainsGrant(GrantOTPValidate, req))
+	require.NotNil(t, ContainsGrant(GrantAuthenticated, req))
+	require.Nil(t, ContainsGrant(GrantUsersRefresh, req))
+}
 
 func TestToGrant(t *testing.T) {
 	tests := []struct {

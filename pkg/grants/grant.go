@@ -1,8 +1,17 @@
 package grants
 
 import (
+	"errors"
 	"fmt"
+	"net/http"
 	"strings"
+
+	middleware "github.com/crossedbot/simplemiddleware"
+)
+
+var (
+	// Errors
+	ErrRequestGrant = errors.New("Request does not match grant")
 )
 
 // Grant represents an access grant for interacting with the authentication
@@ -61,6 +70,23 @@ func ToGrant(s string) (Grant, error) {
 		}
 	}
 	return grant, nil
+}
+
+// ContainsGrant return nil if the given request's context contains the given
+// access grant. Otherwise an error is returned.
+func ContainsGrant(grant Grant, r *http.Request) error {
+	reqGrantStr, ok := r.Context().Value(middleware.ClaimGrant).(string)
+	if !ok {
+		return middleware.ErrGrantDataType
+	}
+	reqGrant, err := ToGrant(reqGrantStr)
+	if err != nil {
+		return err
+	}
+	if (reqGrant & grant) != grant {
+		return ErrRequestGrant
+	}
+	return nil
 }
 
 // Clean returns a grant "cleansed" of unused/reserved bits. If the grant

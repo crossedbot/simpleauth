@@ -135,7 +135,7 @@ func SignUp(w http.ResponseWriter, r *http.Request, p server.Parameters) {
 
 // SetTotp handles the response to a request to enable TOTP for a user.
 func SetTotp(w http.ResponseWriter, r *http.Request, p server.Parameters) {
-	if err := ContainsGrant(grants.GrantSetOTP, r); err != nil {
+	if err := grants.ContainsGrant(grants.GrantSetOTP, r); err != nil {
 		server.JsonResponse(w, server.Error{
 			Code:    server.ErrUnauthorizedCode,
 			Message: "Not authorized to perform this action",
@@ -172,7 +172,7 @@ func SetTotp(w http.ResponseWriter, r *http.Request, p server.Parameters) {
 
 // ValidateOtp handles the response to a request to validate a user's OTP.
 func ValidateOtp(w http.ResponseWriter, r *http.Request, p server.Parameters) {
-	if err := ContainsGrant(grants.GrantOTPValidate, r); err != nil {
+	if err := grants.ContainsGrant(grants.GrantOTPValidate, r); err != nil {
 		server.JsonResponse(w, server.Error{
 			Code:    server.ErrUnauthorizedCode,
 			Message: "Not authorized to perform this action",
@@ -206,7 +206,7 @@ func ValidateOtp(w http.ResponseWriter, r *http.Request, p server.Parameters) {
 // GetOtpQr handles the response for a request to retrieve the QR image of a
 // users OTP.
 func GetOtpQr(w http.ResponseWriter, r *http.Request, p server.Parameters) {
-	if err := ContainsGrant(grants.GrantOTPQR, r); err != nil {
+	if err := grants.ContainsGrant(grants.GrantOTPQR, r); err != nil {
 		server.JsonResponse(w, server.Error{
 			Code:    server.ErrUnauthorizedCode,
 			Message: "Not authorized to perform this action",
@@ -233,7 +233,8 @@ func GetOtpQr(w http.ResponseWriter, r *http.Request, p server.Parameters) {
 
 // RefreshToken handles the response for a request to refresh access tokens.
 func RefreshToken(w http.ResponseWriter, r *http.Request, p server.Parameters) {
-	if err := ContainsGrant(grants.GrantUsersRefresh, r); err != nil {
+	err := grants.ContainsGrant(grants.GrantUsersRefresh, r)
+	if err != nil {
 		server.JsonResponse(w, server.Error{
 			Code:    server.ErrUnauthorizedCode,
 			Message: "Not authorized to perform this action",
