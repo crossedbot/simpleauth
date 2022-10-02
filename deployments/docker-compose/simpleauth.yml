@@ -2,7 +2,7 @@ services:
     mongo:
         image: mongo:latest
     simpleauth:
-        image: simpleauth:latest
+        image: crossedbot/simpleauth:latest
         depends_on:
             - mongo
         links:

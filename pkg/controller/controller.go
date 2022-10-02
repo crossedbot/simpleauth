@@ -110,8 +110,8 @@ type Config struct {
 var control Controller
 var controllerOnce sync.Once
 
-// V1 is version 1 of an authentication service controller.
-var V1 = func() Controller {
+// Ctrl is an instance of an authentication service controller.
+var Ctrl = func() Controller {
 	// XXX Probably should change the name of this. I am unlikely to keep
 	// previous versions of the service around.
 
