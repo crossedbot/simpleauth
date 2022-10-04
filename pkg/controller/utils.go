@@ -77,12 +77,10 @@ func GenerateTokens(user models.User, pubKey, privKey []byte, options *TokenOpti
 	}
 	claims := simplejwt.CustomClaims{
 		"email":                user.Email,
-		"first":                user.FirstName,
-		"last":                 user.LastName,
 		middleware.ClaimUserId: user.UserId,
 		"user_type":            user.UserType,
 		"exp":                  time.Now().Local().Add(ttl).Unix(),
-		middleware.ClaimGrant:  grant.String(),
+		middleware.ClaimGrant:  grant.Short(),
 	}
 	jwt := simplejwt.New(claims, algorithms.AlgorithmRS256)
 	jwt.Header["kid"] = jwk.EncodeToString(commoncrypto.KeyId(pubKey))

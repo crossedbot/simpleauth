@@ -48,6 +48,10 @@ var GrantStrings = map[Grant]string{
 	GrantOTPValidate:  "otp-validate",
 	GrantOTPQR:        "otp-qr",
 	GrantUsersRefresh: "users-refresh",
+
+	// Short names
+	GrantOTP:           "otp-all",
+	GrantAuthenticated: "authenticated",
 }
 
 // ToGrant returns an access grant for the given string. The string may be
@@ -96,6 +100,17 @@ func (g Grant) Clean() Grant {
 		return GrantNone
 	}
 	return g & GrantAuthenticated
+}
+
+// Short returns the short name of the access grant. If the grant is not mapped
+// to a short name, a comma-separated string representation is returned instead
+// (IE. Grant.String() is called instead).
+func (g Grant) Short() string {
+	s, ok := GrantStrings[g]
+	if !ok {
+		s = g.String()
+	}
+	return s
 }
 
 // String returns the comma-separated string representation of the access grant.

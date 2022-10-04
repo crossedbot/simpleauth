@@ -14,6 +14,7 @@ import (
 func TestContainsGrant(t *testing.T) {
 	req, err := http.NewRequest(http.MethodGet, "hello.world/test", nil)
 	require.Nil(t, err)
+
 	ctx := req.Context()
 	ctx = context.WithValue(ctx, middleware.ClaimGrant,
 		GrantAuthenticated.String())
@@ -30,6 +31,16 @@ func TestContainsGrant(t *testing.T) {
 	require.NotNil(t, ContainsGrant(GrantOTPValidate, req))
 	require.NotNil(t, ContainsGrant(GrantAuthenticated, req))
 	require.Nil(t, ContainsGrant(GrantUsersRefresh, req))
+
+	ctx = req.Context()
+	ctx = context.WithValue(ctx, middleware.ClaimGrant,
+		GrantStrings[GrantAuthenticated])
+	req = req.WithContext(ctx)
+	require.Nil(t, ContainsGrant(GrantOTP, req))
+	require.Nil(t, ContainsGrant(GrantOTPValidate, req))
+	require.Nil(t, ContainsGrant(GrantUsersRefresh, req))
+	require.Nil(t, ContainsGrant(GrantAuthenticated, req))
+	require.NotNil(t, ContainsGrant(GrantFull, req))
 }
 
 func TestToGrant(t *testing.T) {
@@ -40,6 +51,7 @@ func TestToGrant(t *testing.T) {
 	}{
 		{GrantStrings[GrantUnknown], GrantUnknown, nil},
 		{GrantStrings[GrantNone], GrantNone, nil},
+		{GrantStrings[GrantAuthenticated], GrantAuthenticated, nil},
 		{GrantStrings[GrantSetOTP], GrantSetOTP, nil},
 		{GrantStrings[GrantOTPValidate], GrantOTPValidate, nil},
 		{GrantStrings[GrantOTPQR], GrantOTPQR, nil},
@@ -107,6 +119,39 @@ func TestGrantClean(t *testing.T) {
 	}
 	for _, test := range tests {
 		require.Equal(t, test.Expected, test.Grant.Clean())
+	}
+}
+
+func TestGrantShort(t *testing.T) {
+	tests := []struct {
+		Grant    Grant
+		Expected string
+	}{
+		{GrantUnknown, GrantStrings[GrantUnknown]},
+		{GrantNone, GrantStrings[GrantNone]},
+		{GrantSetOTP, GrantStrings[GrantSetOTP]},
+		{GrantOTPValidate, GrantStrings[GrantOTPValidate]},
+		{GrantOTPQR, GrantStrings[GrantOTPQR]},
+		{GrantUsersRefresh, GrantStrings[GrantUsersRefresh]},
+		{GrantOTP, GrantStrings[GrantOTP]},
+		{GrantAuthenticated, GrantStrings[GrantAuthenticated]},
+		{
+			GrantSetOTP | GrantOTPQR,
+			strings.Join([]string{
+				GrantStrings[GrantSetOTP],
+				GrantStrings[GrantOTPQR],
+			}, ","),
+		},
+		{
+			GrantUsersRefresh | GrantOTPValidate,
+			strings.Join([]string{
+				GrantStrings[GrantOTPValidate],
+				GrantStrings[GrantUsersRefresh],
+			}, ","),
+		},
+	}
+	for _, test := range tests {
+		require.Equal(t, test.Expected, test.Grant.Short())
 	}
 }
 

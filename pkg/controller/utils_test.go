@@ -55,11 +55,11 @@ func TestGenerateTokens(t *testing.T) {
 	require.Nil(t, err)
 	require.Equal(t, user.UserId,
 		parsedTkn.Claims.Get(middleware.ClaimUserId))
-	require.Equal(t, grants.GrantAuthenticated.String(),
+	require.Equal(t, grants.GrantAuthenticated.Short(),
 		parsedTkn.Claims.Get(middleware.ClaimGrant))
 	require.Equal(t, user.UserId,
 		parsedRTkn.Claims.Get(middleware.ClaimUserId))
-	require.Equal(t, grants.GrantUsersRefresh.String(),
+	require.Equal(t, grants.GrantUsersRefresh.Short(),
 		parsedRTkn.Claims.Get(middleware.ClaimGrant))
 
 	// Options usage
@@ -80,11 +80,11 @@ func TestGenerateTokens(t *testing.T) {
 	require.Nil(t, err)
 	require.Equal(t, user.UserId,
 		parsedTkn.Claims.Get(middleware.ClaimUserId))
-	require.Equal(t, grants.GrantOTPValidate.String(),
+	require.Equal(t, grants.GrantOTPValidate.Short(),
 		parsedTkn.Claims.Get(middleware.ClaimGrant))
 	require.Equal(t, user.UserId,
 		parsedRTkn.Claims.Get(middleware.ClaimUserId))
-	require.Equal(t, grants.GrantUsersRefresh.String(),
+	require.Equal(t, grants.GrantUsersRefresh.Short(),
 		parsedRTkn.Claims.Get(middleware.ClaimGrant))
 
 	// Skipping a refresh token
@@ -97,7 +97,7 @@ func TestGenerateTokens(t *testing.T) {
 	require.Nil(t, err)
 	require.Equal(t, user.UserId,
 		parsedTkn.Claims.Get(middleware.ClaimUserId))
-	require.Equal(t, grants.GrantOTPValidate.String(),
+	require.Equal(t, grants.GrantOTPValidate.Short(),
 		parsedTkn.Claims.Get(middleware.ClaimGrant))
 }
 
