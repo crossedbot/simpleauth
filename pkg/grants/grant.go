@@ -143,11 +143,15 @@ func SetCustomGrants(grants []string) error {
 			delete(GrantStrings, k)
 		}
 	}
-	for i, g := range grants {
-		i += 1
-		shift := 15 + i
-		v = Grant((1 << shift) & GrantSectionCustom)
-		GrantStrings[v] = g
+	i := 0
+	for _, g := range grants {
+		// Only add grants that we don't know about
+		if t, _ := ToGrant(g); t == GrantUnknown {
+			i += 1
+			shift := 15 + i
+			v = Grant((1 << shift) & GrantSectionCustom)
+			GrantStrings[v] = g
+		}
 	}
 	return nil
 }

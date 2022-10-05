@@ -105,28 +105,32 @@ func TestToGrant(t *testing.T) {
 	}
 }
 
-func ToGrantCustom(t *testing.T) {
-	customGrants := []string{"this", "that", "those"}
+func TestToGrantCustom(t *testing.T) {
+	// Include duplicates to make sure we are deduplicating.
+	customGrants := []string{
+		"authenticated", "this",
+		"this", "that", "those",
+	}
 	tests := []struct {
 		Str         string
 		Expected    Grant
 		ExpectedErr error
 	}{
-		{customGrants[0], Grant(0x010000), nil},
-		{customGrants[1], Grant(0x020000), nil},
-		{customGrants[2], Grant(0x040000), nil},
+		{customGrants[2], Grant(0x010000), nil},
+		{customGrants[3], Grant(0x020000), nil},
+		{customGrants[4], Grant(0x040000), nil},
 		{
 			strings.Join([]string{
-				customGrants[0],
 				customGrants[2],
+				customGrants[4],
 			}, ","),
 			Grant(0x050000), nil,
 		},
 		{
 			strings.Join([]string{
-				customGrants[0],
-				customGrants[1],
 				customGrants[2],
+				customGrants[3],
+				customGrants[4],
 			}, ","),
 			Grant(0x070000), nil,
 		},
