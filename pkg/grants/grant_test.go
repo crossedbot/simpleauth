@@ -1,8 +1,6 @@
 package grants
 
 import (
-	"fmt"
-
 	"context"
 	"errors"
 	"net/http"
@@ -278,8 +276,7 @@ func TestGrantShortCustom(t *testing.T) {
 		{GrantOTP, GrantStrings[GrantOTP]},
 		{GrantUnknown | GetCustomGrant(), customGrantsStr},
 	}
-	for i, test := range tests {
-		fmt.Println(i)
+	for _, test := range tests {
 		require.Equal(t, test.Expected, test.Grant.Short())
 	}
 	SetCustomGrants([]string{})
