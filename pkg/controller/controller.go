@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"os"
 	"strings"
 	"sync"
 	"time"
@@ -101,10 +100,11 @@ type controller struct {
 
 // Config represents the configuration of an authentication service controller.
 type Config struct {
-	DatabaseAddr string `toml:"database_addr"`
-	PrivateKey   string `toml:"private_key"`
-	Certificate  string `toml:"certificate"`
-	TotpIssuer   string `toml:"totp_issuer"`
+	DatabaseAddr string   `toml:"database_addr"`
+	PrivateKey   string   `toml:"private_key"`
+	Certificate  string   `toml:"certificate"`
+	TotpIssuer   string   `toml:"totp_issuer"`
+	CustomGrants []string `toml:"custom_grants"`
 }
 
 var control Controller
@@ -112,11 +112,7 @@ var controllerOnce sync.Once
 
 // Ctrl is an instance of an authentication service controller.
 var Ctrl = func() Controller {
-	// XXX Probably should change the name of this. I am unlikely to keep
-	// previous versions of the service around.
-
 	controllerOnce.Do(func() {
-		// XXX this should really be split up into functions
 		var cfg Config
 		if err := config.Load(&cfg); err != nil {
 			panic(err)
@@ -133,35 +129,15 @@ var Ctrl = func() Controller {
 				cfg.DatabaseAddr,
 			))
 		}
-		privateKey, err := ioutil.ReadFile(cfg.PrivateKey)
+		privateKey, publicKey, cert, err := readKeysFromConfig(cfg)
 		if err != nil {
-			panic(fmt.Sprintf(
-				"Controller: private key not found ('%s')",
-				cfg.PrivateKey,
-			))
+			panic(fmt.Sprintf("Controller: %s", err))
 		}
-		cert := jwk.Certificate{}
-		certFd, err := os.Open(cfg.Certificate)
-		if err != nil {
-			panic(fmt.Sprintf(
-				"Controller: certificate not found ('%s')",
-				cfg.Certificate,
-			))
-		}
-		cert, err = jwk.NewCertificate(certFd)
-		if err != nil {
-			panic(fmt.Sprintf(
-				"Controller: failed to parse certificate; %s",
-				err,
-			))
-		}
-		publicKey, err := cert.PublicKey()
-		if err != nil {
-			panic(fmt.Sprintf(
-				"Controller: failed to parse certificate's "+
-					"public key; %s",
-				err,
-			))
+		if len(cfg.CustomGrants) > 0 {
+			err := grants.SetCustomGrants(cfg.CustomGrants)
+			if err != nil {
+				panic(fmt.Sprintf("Controller: %s", err))
+			}
 		}
 		middleware.SetAuthPublicKey(publicKey)
 		control = New(

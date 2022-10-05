@@ -33,11 +33,9 @@ func TestVerifyPassword(t *testing.T) {
 
 func TestGenerateTokens(t *testing.T) {
 	user := models.User{
-		Email:     "hello@world.com",
-		FirstName: "hello",
-		LastName:  "world",
-		UserId:    "abc123",
-		UserType:  models.BaseUserType.String(),
+		Email:    "hello@world.com",
+		UserId:   "abc123",
+		UserType: models.BaseUserType.String(),
 	}
 
 	// Basic usage
@@ -99,6 +97,32 @@ func TestGenerateTokens(t *testing.T) {
 		parsedTkn.Claims.Get(middleware.ClaimUserId))
 	require.Equal(t, grants.GrantOTPValidate.Short(),
 		parsedTkn.Claims.Get(middleware.ClaimGrant))
+
+	// Custom grants
+	err = grants.SetCustomGrants([]string{"this", "that", "those"})
+	require.Nil(t, err)
+	options = &TokenOptions{}
+	tkn, rTkn, err = GenerateTokens(user, []byte(testPublicKey),
+		[]byte(testPrivateKey), options)
+	require.Nil(t, err)
+	parsedTkn, err = jwt.Parse(tkn)
+	require.Nil(t, err)
+	err = parsedTkn.Valid([]byte(testPublicKey))
+	require.Nil(t, err)
+	parsedRTkn, err = jwt.Parse(rTkn)
+	require.Nil(t, err)
+	err = parsedRTkn.Valid([]byte(testPublicKey))
+	require.Nil(t, err)
+	require.Equal(t, user.UserId,
+		parsedTkn.Claims.Get(middleware.ClaimUserId))
+	expectedGrantsStr := grants.Grant(grants.GrantAuthenticated | 0x070000)
+	require.Equal(t, expectedGrantsStr.Short(),
+		parsedTkn.Claims.Get(middleware.ClaimGrant))
+	require.Equal(t, user.UserId,
+		parsedRTkn.Claims.Get(middleware.ClaimUserId))
+	require.Equal(t, grants.GrantUsersRefresh.Short(),
+		parsedRTkn.Claims.Get(middleware.ClaimGrant))
+	grants.SetCustomGrants([]string{})
 }
 
 func TestDecodeTotp(t *testing.T) {

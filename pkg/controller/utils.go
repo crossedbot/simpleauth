@@ -3,6 +3,9 @@ package controller
 import (
 	"encoding/base64"
 	"errors"
+	"fmt"
+	"io/ioutil"
+	"os"
 	"time"
 
 	commoncrypto "github.com/crossedbot/common/golang/crypto"
@@ -64,8 +67,11 @@ type TokenOptions struct {
 // Skipping the refresh token, will return an empty string in its place.
 func GenerateTokens(user models.User, pubKey, privKey []byte, options *TokenOptions) (string, string, error) {
 	grant := grants.GrantAuthenticated
+	if grants.IsCustomGrantsSet() {
+		grant |= grants.GetCustomGrant()
+	}
 	if options != nil && options.Grant != grants.GrantUnknown {
-		grant = options.Grant.Clean()
+		grant = options.Grant
 	}
 	ttl := AccessTokenExpiration
 	if options != nil && options.TTL > time.Duration(0) {
@@ -80,7 +86,7 @@ func GenerateTokens(user models.User, pubKey, privKey []byte, options *TokenOpti
 		middleware.ClaimUserId: user.UserId,
 		"user_type":            user.UserType,
 		"exp":                  time.Now().Local().Add(ttl).Unix(),
-		middleware.ClaimGrant:  grant.Short(),
+		middleware.ClaimGrant:  grant.Clean().Short(),
 	}
 	jwt := simplejwt.New(claims, algorithms.AlgorithmRS256)
 	jwt.Header["kid"] = jwk.EncodeToString(commoncrypto.KeyId(pubKey))
@@ -122,4 +128,39 @@ func EncodeTotp(totp *twofactor.Totp) (string, error) {
 		return "", err
 	}
 	return base64.URLEncoding.EncodeToString(b), nil
+}
+
+// readKeysFromConfig returns the private and public key, and JWK certificate
+// for the given configuration.
+func readKeysFromConfig(cfg Config) ([]byte, []byte, jwk.Certificate, error) {
+	privateKey, err := ioutil.ReadFile(cfg.PrivateKey)
+	if err != nil {
+		return nil, nil, jwk.Certificate{}, fmt.Errorf(
+			"Private key not found ('%s')",
+			cfg.PrivateKey,
+		)
+	}
+	cert := jwk.Certificate{}
+	certFd, err := os.Open(cfg.Certificate)
+	if err != nil {
+		return nil, nil, jwk.Certificate{}, fmt.Errorf(
+			"Certificate not found ('%s')",
+			cfg.Certificate,
+		)
+	}
+	cert, err = jwk.NewCertificate(certFd)
+	if err != nil {
+		return nil, nil, jwk.Certificate{}, fmt.Errorf(
+			"Failed to parse certificate; %s",
+			err,
+		)
+	}
+	publicKey, err := cert.PublicKey()
+	if err != nil {
+		return nil, nil, jwk.Certificate{}, fmt.Errorf(
+			"Failed to parse certificate's public key; %s",
+			err,
+		)
+	}
+	return privateKey, publicKey, cert, nil
 }

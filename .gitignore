@@ -19,3 +19,4 @@ secrets/*
 keys
 api/*.html
 TODO
+test/
