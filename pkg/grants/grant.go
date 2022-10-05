@@ -164,7 +164,8 @@ func (g Grant) Clean() Grant {
 	}
 	filter := GrantAuthenticated
 	if IsCustomGrantsSet() {
-		filter |= GrantSectionCustom
+		// Filter by existing custom grants
+		filter |= GetCustomGrant()
 	}
 	return g & filter
 }
