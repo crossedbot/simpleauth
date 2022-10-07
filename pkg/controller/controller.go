@@ -104,7 +104,7 @@ type Config struct {
 	PrivateKey   string   `toml:"private_key"`
 	Certificate  string   `toml:"certificate"`
 	TotpIssuer   string   `toml:"totp_issuer"`
-	CustomGrants []string `toml:"custom_grants"`
+	AuthGrants   []string `toml:"auth_grants"`
 }
 
 var control Controller
@@ -133,8 +133,8 @@ var Ctrl = func() Controller {
 		if err != nil {
 			panic(fmt.Sprintf("Controller: %s", err))
 		}
-		if len(cfg.CustomGrants) > 0 {
-			err := grants.SetCustomGrants(cfg.CustomGrants)
+		if len(cfg.AuthGrants) > 0 {
+			err := grants.SetCustomGrants(cfg.AuthGrants)
 			if err != nil {
 				panic(fmt.Sprintf("Controller: %s", err))
 			}
