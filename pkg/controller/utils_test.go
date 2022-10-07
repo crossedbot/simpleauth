@@ -1,10 +1,8 @@
 package controller
 
 import (
-	"context"
 	"crypto"
 	"encoding/base64"
-	"net/http"
 	"testing"
 	"time"
 
@@ -35,11 +33,9 @@ func TestVerifyPassword(t *testing.T) {
 
 func TestGenerateTokens(t *testing.T) {
 	user := models.User{
-		Email:     "hello@world.com",
-		FirstName: "hello",
-		LastName:  "world",
-		UserId:    "abc123",
-		UserType:  models.BaseUserType.String(),
+		Email:    "hello@world.com",
+		UserId:   "abc123",
+		UserType: models.BaseUserType.String(),
 	}
 
 	// Basic usage
@@ -57,11 +53,11 @@ func TestGenerateTokens(t *testing.T) {
 	require.Nil(t, err)
 	require.Equal(t, user.UserId,
 		parsedTkn.Claims.Get(middleware.ClaimUserId))
-	require.Equal(t, grants.GrantAuthenticated.String(),
+	require.Equal(t, grants.GrantAuthenticated.Short(),
 		parsedTkn.Claims.Get(middleware.ClaimGrant))
 	require.Equal(t, user.UserId,
 		parsedRTkn.Claims.Get(middleware.ClaimUserId))
-	require.Equal(t, grants.GrantUsersRefresh.String(),
+	require.Equal(t, grants.GrantUsersRefresh.Short(),
 		parsedRTkn.Claims.Get(middleware.ClaimGrant))
 
 	// Options usage
@@ -82,11 +78,11 @@ func TestGenerateTokens(t *testing.T) {
 	require.Nil(t, err)
 	require.Equal(t, user.UserId,
 		parsedTkn.Claims.Get(middleware.ClaimUserId))
-	require.Equal(t, grants.GrantOTPValidate.String(),
+	require.Equal(t, grants.GrantOTPValidate.Short(),
 		parsedTkn.Claims.Get(middleware.ClaimGrant))
 	require.Equal(t, user.UserId,
 		parsedRTkn.Claims.Get(middleware.ClaimUserId))
-	require.Equal(t, grants.GrantUsersRefresh.String(),
+	require.Equal(t, grants.GrantUsersRefresh.Short(),
 		parsedRTkn.Claims.Get(middleware.ClaimGrant))
 
 	// Skipping a refresh token
@@ -99,8 +95,34 @@ func TestGenerateTokens(t *testing.T) {
 	require.Nil(t, err)
 	require.Equal(t, user.UserId,
 		parsedTkn.Claims.Get(middleware.ClaimUserId))
-	require.Equal(t, grants.GrantOTPValidate.String(),
+	require.Equal(t, grants.GrantOTPValidate.Short(),
 		parsedTkn.Claims.Get(middleware.ClaimGrant))
+
+	// Custom grants
+	err = grants.SetCustomGrants([]string{"this", "that", "those"})
+	require.Nil(t, err)
+	options = &TokenOptions{}
+	tkn, rTkn, err = GenerateTokens(user, []byte(testPublicKey),
+		[]byte(testPrivateKey), options)
+	require.Nil(t, err)
+	parsedTkn, err = jwt.Parse(tkn)
+	require.Nil(t, err)
+	err = parsedTkn.Valid([]byte(testPublicKey))
+	require.Nil(t, err)
+	parsedRTkn, err = jwt.Parse(rTkn)
+	require.Nil(t, err)
+	err = parsedRTkn.Valid([]byte(testPublicKey))
+	require.Nil(t, err)
+	require.Equal(t, user.UserId,
+		parsedTkn.Claims.Get(middleware.ClaimUserId))
+	expectedGrantsStr := grants.Grant(grants.GrantAuthenticated | 0x070000)
+	require.Equal(t, expectedGrantsStr.Short(),
+		parsedTkn.Claims.Get(middleware.ClaimGrant))
+	require.Equal(t, user.UserId,
+		parsedRTkn.Claims.Get(middleware.ClaimUserId))
+	require.Equal(t, grants.GrantUsersRefresh.Short(),
+		parsedRTkn.Claims.Get(middleware.ClaimGrant))
+	grants.SetCustomGrants([]string{})
 }
 
 func TestDecodeTotp(t *testing.T) {
@@ -137,25 +159,4 @@ func TestEncodeTotp(t *testing.T) {
 	actual, err := totp2.ToBytes()
 	require.Nil(t, err)
 	require.Equal(t, expected, actual)
-}
-
-func TestContainsGrant(t *testing.T) {
-	req, err := http.NewRequest(http.MethodGet, "hello.world/test", nil)
-	require.Nil(t, err)
-	ctx := req.Context()
-	ctx = context.WithValue(ctx, middleware.ClaimGrant,
-		grants.GrantAuthenticated.String())
-	req = req.WithContext(ctx)
-	require.Nil(t, ContainsGrant(grants.GrantOTP, req))
-	require.Nil(t, ContainsGrant(grants.GrantOTPValidate, req))
-	require.Nil(t, ContainsGrant(grants.GrantUsersRefresh, req))
-
-	ctx = req.Context()
-	ctx = context.WithValue(ctx, middleware.ClaimGrant,
-		grants.GrantUsersRefresh.String())
-	req = req.WithContext(ctx)
-	require.NotNil(t, ContainsGrant(grants.GrantOTP, req))
-	require.NotNil(t, ContainsGrant(grants.GrantOTPValidate, req))
-	require.NotNil(t, ContainsGrant(grants.GrantAuthenticated, req))
-	require.Nil(t, ContainsGrant(grants.GrantUsersRefresh, req))
 }

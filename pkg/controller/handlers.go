@@ -47,7 +47,7 @@ func Login(w http.ResponseWriter, r *http.Request, p server.Parameters) {
 		}, http.StatusBadRequest)
 		return
 	}
-	tkn, err := V1().Login(login)
+	tkn, err := Ctrl().Login(login)
 	if err == ErrorBadCredentials {
 		logger.Error(err)
 		server.JsonResponse(w, server.Error{
@@ -118,7 +118,7 @@ func SignUp(w http.ResponseWriter, r *http.Request, p server.Parameters) {
 		}, http.StatusBadRequest)
 		return
 	}
-	tkn, err := V1().SignUp(user)
+	tkn, err := Ctrl().SignUp(user)
 	if err != nil {
 		logger.Error(err)
 		server.JsonResponse(w, server.Error{
@@ -135,7 +135,7 @@ func SignUp(w http.ResponseWriter, r *http.Request, p server.Parameters) {
 
 // SetTotp handles the response to a request to enable TOTP for a user.
 func SetTotp(w http.ResponseWriter, r *http.Request, p server.Parameters) {
-	if err := ContainsGrant(grants.GrantSetOTP, r); err != nil {
+	if err := grants.ContainsGrant(grants.GrantSetOTP, r); err != nil {
 		server.JsonResponse(w, server.Error{
 			Code:    server.ErrUnauthorizedCode,
 			Message: "Not authorized to perform this action",
@@ -155,7 +155,7 @@ func SetTotp(w http.ResponseWriter, r *http.Request, p server.Parameters) {
 		}, http.StatusBadRequest)
 		return
 	}
-	newTotp, err := V1().SetTotp(uid, totp)
+	newTotp, err := Ctrl().SetTotp(uid, totp)
 	if err != nil {
 		logger.Error(err)
 		server.JsonResponse(w, server.Error{
@@ -172,7 +172,7 @@ func SetTotp(w http.ResponseWriter, r *http.Request, p server.Parameters) {
 
 // ValidateOtp handles the response to a request to validate a user's OTP.
 func ValidateOtp(w http.ResponseWriter, r *http.Request, p server.Parameters) {
-	if err := ContainsGrant(grants.GrantOTPValidate, r); err != nil {
+	if err := grants.ContainsGrant(grants.GrantOTPValidate, r); err != nil {
 		server.JsonResponse(w, server.Error{
 			Code:    server.ErrUnauthorizedCode,
 			Message: "Not authorized to perform this action",
@@ -188,7 +188,7 @@ func ValidateOtp(w http.ResponseWriter, r *http.Request, p server.Parameters) {
 		}, http.StatusBadRequest)
 		return
 	}
-	tkn, err := V1().ValidateOtp(uid, otp)
+	tkn, err := Ctrl().ValidateOtp(uid, otp)
 	if err != nil {
 		logger.Error(err)
 		server.JsonResponse(w, server.Error{
@@ -206,7 +206,7 @@ func ValidateOtp(w http.ResponseWriter, r *http.Request, p server.Parameters) {
 // GetOtpQr handles the response for a request to retrieve the QR image of a
 // users OTP.
 func GetOtpQr(w http.ResponseWriter, r *http.Request, p server.Parameters) {
-	if err := ContainsGrant(grants.GrantOTPQR, r); err != nil {
+	if err := grants.ContainsGrant(grants.GrantOTPQR, r); err != nil {
 		server.JsonResponse(w, server.Error{
 			Code:    server.ErrUnauthorizedCode,
 			Message: "Not authorized to perform this action",
@@ -214,7 +214,7 @@ func GetOtpQr(w http.ResponseWriter, r *http.Request, p server.Parameters) {
 		return
 	}
 	uid, _ := r.Context().Value(middleware.ClaimUserId).(string)
-	qr, err := V1().GetOtpQr(uid)
+	qr, err := Ctrl().GetOtpQr(uid)
 	if err != nil {
 		logger.Error(err)
 		server.JsonResponse(w, server.Error{
@@ -233,7 +233,8 @@ func GetOtpQr(w http.ResponseWriter, r *http.Request, p server.Parameters) {
 
 // RefreshToken handles the response for a request to refresh access tokens.
 func RefreshToken(w http.ResponseWriter, r *http.Request, p server.Parameters) {
-	if err := ContainsGrant(grants.GrantUsersRefresh, r); err != nil {
+	err := grants.ContainsGrant(grants.GrantUsersRefresh, r)
+	if err != nil {
 		server.JsonResponse(w, server.Error{
 			Code:    server.ErrUnauthorizedCode,
 			Message: "Not authorized to perform this action",
@@ -241,7 +242,7 @@ func RefreshToken(w http.ResponseWriter, r *http.Request, p server.Parameters) {
 		return
 	}
 	uid, _ := r.Context().Value(middleware.ClaimUserId).(string)
-	refreshedToken, err := V1().RefreshToken(uid)
+	refreshedToken, err := Ctrl().RefreshToken(uid)
 	if err != nil {
 		logger.Error(err)
 		server.JsonResponse(w, server.Error{
@@ -258,7 +259,7 @@ func RefreshToken(w http.ResponseWriter, r *http.Request, p server.Parameters) {
 
 // GetJwk handles the response to a request for the service's JSON web key.
 func GetJwk(w http.ResponseWriter, r *http.Request, p server.Parameters) {
-	jwks, err := V1().GetJwks()
+	jwks, err := Ctrl().GetJwks()
 	if err != nil {
 		logger.Error(err)
 		server.JsonResponse(w, server.Error{
