@@ -296,14 +296,11 @@ func (c *controller) SignUp(user models.User) (models.AccessToken, error) {
 	}
 	user.Token = tkn
 	user.RefreshToken = refreshTkn
-	result, err := c.Users().InsertOne(c.ctx, user)
+	_, err = c.Users().InsertOne(c.ctx, user)
 	if err != nil {
 		return models.AccessToken{}, err
 	}
-	id, ok := result.InsertedID.(primitive.ObjectID)
-	if ok {
-		c.SetTotp(id.String(), models.Totp{Enabled: user.TotpEnabled})
-	}
+	c.SetTotp(user.UserId, models.Totp{Enabled: user.TotpEnabled})
 	return models.AccessToken{
 		Token:        tkn,
 		RefreshToken: refreshTkn,
