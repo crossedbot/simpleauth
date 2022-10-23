@@ -322,7 +322,7 @@ func (c *controller) SetTotp(id string, totp models.Totp) (models.Totp, error) {
 		}
 		// set TOTP if it doesn't exist and is enabled
 		newTotp, err := twofactor.NewTOTP(
-			foundUser.Email,
+			account,
 			c.issuer,
 			crypto.SHA1,
 			DefaultTotpDigits,

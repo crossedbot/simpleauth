@@ -83,6 +83,7 @@ func GenerateTokens(user models.User, pubKey, privKey []byte, options *TokenOpti
 	}
 	claims := simplejwt.CustomClaims{
 		"email":                user.Email,
+		"username":             user.Username,
 		middleware.ClaimUserId: user.UserId,
 		"user_type":            user.UserType,
 		"exp":                  time.Now().Local().Add(ttl).Unix(),
