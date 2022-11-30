@@ -1,0 +1,28 @@
+services:
+  postgresql:
+    image: postgres:latest
+    restart: always
+    environment:
+      - POSTGRES_USER=$POSTGRES_USER
+      - POSTGRES_PASSWORD=$POSTGRES_PASSWORD
+    healthcheck:
+      test: curl -s http://localhost:5432 >/dev/null; if [[ $$? == 52 ]]; then echo 0; else echo 1; fi
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    volumes:
+      - ./data/init.postgres.sql:/docker-entrypoint-initdb.d/init.sql
+  simpleauth:
+    image: crossedbot/simpleauth:dev
+    environment:
+      - POSTGRES_USER=$POSTGRES_USER
+      - POSTGRES_PASSWORD=$POSTGRES_PASSWORD
+    depends_on:
+      - postgresql
+    links:
+      - postgresql
+    ports:
+      - "${PORT}:8080"
+#volumes:
+#  data:
+

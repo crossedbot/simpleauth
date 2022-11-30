@@ -57,9 +57,9 @@ aQIDAQAB
 func TestSetDatabase(t *testing.T) {
 	ctx := context.Background()
 	ctr := &controller{ctx, nil, nil, nil, jwk.Certificate{}, ""}
-	require.Nil(t, ctr.client)
-	ctr.SetDatabase("mongodb://127.0.0.1:27017")
-	require.NotNil(t, ctr.client)
+	require.Nil(t, ctr.db)
+	ctr.SetDatabase("mongodb", "mongodb://127.0.0.1:27017")
+	require.NotNil(t, ctr.db)
 }
 
 func TestSetAuthPrivateKey(t *testing.T) {
