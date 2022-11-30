@@ -6,14 +6,14 @@ services:
       - POSTGRES_USER=$POSTGRES_USER
       - POSTGRES_PASSWORD=$POSTGRES_PASSWORD
     healthcheck:
-      test: curl -s http://localhost:5432 >/dev/null; if [[ $$? == 52 ]]; then echo 0; else echo 1; fi
+      test: curl -s http://localhost:5432 >/dev/null; [[ $$? == 52 ]] && echo 0 || echo 1
       interval: 30s
       timeout: 10s
       retries: 5
     volumes:
       - ./data/init.postgres.sql:/docker-entrypoint-initdb.d/init.sql
   simpleauth:
-    image: crossedbot/simpleauth:dev
+    image: crossedbot/simpleauth:latest
     environment:
       - POSTGRES_USER=$POSTGRES_USER
       - POSTGRES_PASSWORD=$POSTGRES_PASSWORD
