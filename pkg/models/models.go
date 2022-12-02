@@ -36,7 +36,8 @@ var (
 
 // User models a user in the authentication service.
 type User struct {
-	ID           primitive.ObjectID `bson:"_id" json:"-"`
+	ObjectId     primitive.ObjectID `bson:"_id" gorm:"-" json:"-"`
+	Id           uint               `bson:"-" gorm:"primarykey" json:"-"`
 	FirstName    string             `bson:"first_name" json:"first_name"`
 	LastName     string             `bson:"last_name" json:"last_name"`
 	Password     string             `bson:"password" json:"password"`
@@ -51,7 +52,7 @@ type User struct {
 	RefreshToken string             `bson:"refresh_token" json:"-"`
 	TotpEnabled  bool               `bson:"totp_enabled" json:"totp_enabled"`
 	Totp         string             `bson:"totp" json:"-"`
-	Options      map[string]string  `bson:"options" json:"options"`
+	Options      Options            `bson:"options" gorm:"serializer:json" json:"options"`
 }
 
 // Valid returns nil when the user is valid, otherwise an error is returned.
@@ -100,8 +101,8 @@ func ValidPhonenumber(phone string) bool {
 	return PhoneRe.MatchString(phone)
 }
 
-// ValidOptions returns true if the map options are valid.
-func ValidOptions(options map[string]string) bool {
+// ValidOptions returns true if the options map is valid.
+func ValidOptions(options Options) bool {
 	for k, v := range options {
 		if len(k) > MaxNameSize || len(v) > MaxValueSize {
 			return false

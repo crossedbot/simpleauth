@@ -20,3 +20,4 @@ keys
 api/*.html
 TODO
 test/
+.env

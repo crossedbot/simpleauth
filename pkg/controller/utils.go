@@ -4,7 +4,6 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"time"
 
@@ -134,7 +133,7 @@ func EncodeTotp(totp *twofactor.Totp) (string, error) {
 // readKeysFromConfig returns the private and public key, and JWK certificate
 // for the given configuration.
 func readKeysFromConfig(cfg Config) ([]byte, []byte, jwk.Certificate, error) {
-	privateKey, err := ioutil.ReadFile(cfg.PrivateKey)
+	privateKey, err := os.ReadFile(cfg.PrivateKey)
 	if err != nil {
 		return nil, nil, jwk.Certificate{}, fmt.Errorf(
 			"Private key not found ('%s')",

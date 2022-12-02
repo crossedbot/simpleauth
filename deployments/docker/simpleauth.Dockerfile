@@ -14,4 +14,4 @@ COPY ./scripts/run.bash ./bin/run-simpleauth
 COPY ./secrets/* /root/.simpleauth/
 
 EXPOSE 8080
-ENTRYPOINT [ "run-simpleauth", "-d", "mongodb://mongo:27017" ]
+ENTRYPOINT [ "run-simpleauth", "-d", "mongodb://mongo:27017", "-e", "mongo" ]

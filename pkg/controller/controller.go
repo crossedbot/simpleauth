@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"strings"
 	"sync"
 	"time"
@@ -15,10 +14,6 @@ import (
 	"github.com/crossedbot/simplejwt/jwk"
 	middleware "github.com/crossedbot/simplemiddleware"
 	"github.com/sec51/twofactor"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
 
 	"github.com/crossedbot/simpleauth/pkg/database"
 	"github.com/crossedbot/simpleauth/pkg/grants"
@@ -27,11 +22,12 @@ import (
 
 const (
 	// Defaults
-	DefaultTotpIssuer   = "simpleauth"
-	DefaultTotpDigits   = 6
-	DefaultPrivateKey   = "~/.simpleauth/simpleauth.key"
-	DefaultCertificate  = "~/.simpleauth/simpleauth.cert"
-	DefaultDatabaseAddr = "mongodb://127.0.0.1:27017"
+	DefaultTotpIssuer      = "simpleauth"
+	DefaultTotpDigits      = 6
+	DefaultPrivateKey      = "~/.simpleauth/simpleauth.key"
+	DefaultCertificate     = "~/.simpleauth/simpleauth.cert"
+	DefaultDatabasePath    = "mongodb://127.0.0.1:27017"
+	DefaultDatabaseDialect = database.DialectMongoDb
 )
 
 var (
@@ -48,7 +44,7 @@ var (
 type Controller interface {
 	// SetDatabase sets the user database for the authentication service at
 	// the given address.
-	SetDatabase(addr string) error
+	SetDatabase(dialect, path string) error
 
 	// SetAuthPrivateKey sets the JWT private key for generating access
 	// tokens.
@@ -91,20 +87,22 @@ type Controller interface {
 // controller implements the authentication service interface.
 type controller struct {
 	ctx        context.Context
-	client     *mongo.Client   // MongoDB client
-	privateKey []byte          // JSON web token private key
-	publicKey  []byte          // JSON web token public key
-	cert       jwk.Certificate // JSON-Web key certificate
-	issuer     string          // TOTP issuer
+	db         database.Database // Users database
+	privateKey []byte            // JSON web token private key
+	publicKey  []byte            // JSON web token public key
+	cert       jwk.Certificate   // JSON-Web key certificate
+	issuer     string            // TOTP issuer
 }
 
 // Config represents the configuration of an authentication service controller.
 type Config struct {
-	DatabaseAddr string   `toml:"database_addr"`
-	PrivateKey   string   `toml:"private_key"`
-	Certificate  string   `toml:"certificate"`
-	TotpIssuer   string   `toml:"totp_issuer"`
-	AuthGrants   []string `toml:"auth_grants"`
+	DatabasePath    string `toml:"database_path"`
+	DatabaseDialect string `toml:"database_dialect"`
+
+	PrivateKey  string   `toml:"private_key"`
+	Certificate string   `toml:"certificate"`
+	TotpIssuer  string   `toml:"totp_issuer"`
+	AuthGrants  []string `toml:"auth_grants"`
 }
 
 var control Controller
@@ -121,12 +119,12 @@ var Ctrl = func() Controller {
 			cfg.TotpIssuer = DefaultTotpIssuer
 		}
 		ctx := context.Background()
-		db, err := database.New(ctx, cfg.DatabaseAddr)
+		db, err := database.New(ctx, cfg.DatabaseDialect, cfg.DatabasePath)
 		if err != nil {
 			panic(fmt.Sprintf(
 				"Controller: failed to connect to database at "+
 					"address ('%s')",
-				cfg.DatabaseAddr,
+				cfg.DatabasePath,
 			))
 		}
 		privateKey, publicKey, cert, err := readKeysFromConfig(cfg)
@@ -155,33 +153,26 @@ var Ctrl = func() Controller {
 // New returns a new Controller.
 func New(
 	ctx context.Context,
-	client *mongo.Client,
+	db database.Database,
 	privateKey []byte,
 	publicKey []byte,
 	cert jwk.Certificate,
 	totpIssuer string,
 ) Controller {
-	return &controller{
-		ctx,
-		client,
-		privateKey,
-		publicKey,
-		cert,
-		totpIssuer,
-	}
+	return &controller{ctx, db, privateKey, publicKey, cert, totpIssuer}
 }
 
-func (c *controller) SetDatabase(addr string) error {
-	db, err := database.New(c.ctx, addr)
+func (c *controller) SetDatabase(dialect, path string) error {
+	db, err := database.New(c.ctx, dialect, path)
 	if err != nil {
 		return err
 	}
-	c.client = db
+	c.db = db
 	return nil
 }
 
 func (c *controller) SetAuthPrivateKey(privKey io.Reader) error {
-	b, err := ioutil.ReadAll(privKey)
+	b, err := io.ReadAll(privKey)
 	if err != nil {
 		return err
 	}
@@ -209,16 +200,7 @@ func (c *controller) SetTotpIssuer(issuer string) {
 
 func (c *controller) Login(login models.Login) (models.AccessToken, error) {
 	login.Name = strings.ToLower(login.Name)
-	users := c.Users()
-	filter := bson.D{bson.E{
-		Key: "$or",
-		Value: bson.A{
-			bson.M{"email": login.Name},
-			bson.M{"username": login.Name},
-		},
-	}}
-	var foundUser models.User
-	err := users.FindOne(c.ctx, filter).Decode(&foundUser)
+	foundUser, err := c.db.GetUserByName(login.Name)
 	if err != nil {
 		return models.AccessToken{}, ErrorUserNotFound
 	}
@@ -240,7 +222,7 @@ func (c *controller) Login(login models.Login) (models.AccessToken, error) {
 	if err != nil {
 		return models.AccessToken{}, err
 	}
-	if err := c.UpdateTokens(tkn, refreshTkn, foundUser.UserId); err != nil {
+	if err := c.db.UpdateTokens(tkn, refreshTkn, foundUser.UserId); err != nil {
 		return models.AccessToken{}, err
 	}
 	return models.AccessToken{
@@ -256,28 +238,6 @@ func (c *controller) SignUp(user models.User) (models.AccessToken, error) {
 	if err := user.Valid(); err != nil {
 		return models.AccessToken{}, err
 	}
-	params := bson.A{bson.M{"username": user.Username}}
-	if user.Email != "" {
-		params = append(params, bson.M{"email": user.Email})
-	}
-	filter := bson.D{bson.E{Key: "$or", Value: params}}
-	userCount, err := c.Users().CountDocuments(c.ctx, filter)
-	if err != nil {
-		return models.AccessToken{}, err
-	}
-	if user.Phone != "" {
-		count, err := c.Users().CountDocuments(
-			c.ctx,
-			bson.M{"phone": user.Phone},
-		)
-		if err != nil {
-			return models.AccessToken{}, err
-		}
-		userCount += count
-	}
-	if userCount > 0 {
-		return models.AccessToken{}, ErrorUserExists
-	}
 	hashedPass, err := HashPassword(user.Password)
 	if err != nil {
 		return models.AccessToken{}, err
@@ -287,8 +247,6 @@ func (c *controller) SignUp(user models.User) (models.AccessToken, error) {
 	user.Password = hashedPass
 	user.CreatedAt = now
 	user.UpdatedAt = now
-	user.ID = primitive.NewObjectID()
-	user.UserId = user.ID.Hex()
 	tkn, refreshTkn, err := GenerateTokens(user, c.publicKey, c.privateKey,
 		nil)
 	if err != nil {
@@ -296,7 +254,7 @@ func (c *controller) SignUp(user models.User) (models.AccessToken, error) {
 	}
 	user.Token = tkn
 	user.RefreshToken = refreshTkn
-	_, err = c.Users().InsertOne(c.ctx, user)
+	user, err = c.db.SaveUser(user)
 	if err != nil {
 		return models.AccessToken{}, err
 	}
@@ -309,9 +267,7 @@ func (c *controller) SignUp(user models.User) (models.AccessToken, error) {
 }
 
 func (c *controller) SetTotp(id string, totp models.Totp) (models.Totp, error) {
-	users := c.Users()
-	var foundUser models.User
-	err := users.FindOne(c.ctx, bson.M{"user_id": id}).Decode(&foundUser)
+	foundUser, err := c.db.GetUser(id)
 	if err != nil {
 		return models.Totp{}, ErrorUserNotFound
 	}
@@ -343,16 +299,14 @@ func (c *controller) SetTotp(id string, totp models.Totp) (models.Totp, error) {
 			return models.Totp{}, err
 		}
 	}
-	if err := c.UpdateTotp(totp.Enabled, foundUser.Totp, id); err != nil {
+	if err := c.db.UpdateTotp(totp.Enabled, foundUser.Totp, id); err != nil {
 		return models.Totp{}, err
 	}
 	return totp, nil
 }
 
 func (c *controller) ValidateOtp(id, otp string) (models.AccessToken, error) {
-	users := c.Users()
-	var foundUser models.User
-	err := users.FindOne(c.ctx, bson.M{"user_id": id}).Decode(&foundUser)
+	foundUser, err := c.db.GetUser(id)
 	if err != nil {
 		return models.AccessToken{}, ErrorUserNotFound
 	}
@@ -368,8 +322,7 @@ func (c *controller) ValidateOtp(id, otp string) (models.AccessToken, error) {
 	if err != nil {
 		return models.AccessToken{}, err
 	}
-	err = c.UpdateTokens(tkn, refreshTkn, foundUser.UserId)
-	if err != nil {
+	if err := c.db.UpdateTokens(tkn, refreshTkn, foundUser.UserId); err != nil {
 		return models.AccessToken{}, err
 	}
 	return models.AccessToken{
@@ -380,9 +333,7 @@ func (c *controller) ValidateOtp(id, otp string) (models.AccessToken, error) {
 }
 
 func (c *controller) GetOtpQr(id string) ([]byte, error) {
-	users := c.Users()
-	var foundUser models.User
-	err := users.FindOne(c.ctx, bson.M{"user_id": id}).Decode(&foundUser)
+	foundUser, err := c.db.GetUser(id)
 	if err != nil {
 		return nil, ErrorUserNotFound
 	}
@@ -397,9 +348,7 @@ func (c *controller) GetOtpQr(id string) ([]byte, error) {
 }
 
 func (c *controller) RefreshToken(id string) (models.AccessToken, error) {
-	users := c.Users()
-	var foundUser models.User
-	err := users.FindOne(c.ctx, bson.M{"user_id": id}).Decode(&foundUser)
+	foundUser, err := c.db.GetUser(id)
 	if err != nil {
 		return models.AccessToken{}, ErrorUserNotFound
 	}
@@ -408,7 +357,7 @@ func (c *controller) RefreshToken(id string) (models.AccessToken, error) {
 	if err != nil {
 		return models.AccessToken{}, err
 	}
-	if err := c.UpdateTokens(tkn, refreshTkn, foundUser.UserId); err != nil {
+	if err := c.db.UpdateTokens(tkn, refreshTkn, foundUser.UserId); err != nil {
 		return models.AccessToken{}, err
 	}
 	return models.AccessToken{
@@ -421,47 +370,4 @@ func (c *controller) RefreshToken(id string) (models.AccessToken, error) {
 func (c *controller) GetJwks() (jwk.Jwks, error) {
 	webKey, err := c.cert.ToJwk()
 	return jwk.Jwks{Keys: []jwk.Jwk{webKey}}, err
-}
-
-// Users returns the "users" collection of the "auth" database.
-func (c *controller) Users() *mongo.Collection {
-	return c.client.Database("auth").Collection("users")
-}
-
-// UpdateTokens sets the token and refresh token for the given user ID.
-func (c *controller) UpdateTokens(token, refreshToken, userId string) error {
-	users := c.Users()
-	now, _ := time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
-	update := primitive.D{
-		bson.E{Key: "token", Value: token},
-		bson.E{Key: "refresh_token", Value: refreshToken},
-		bson.E{Key: "updated_at", Value: now},
-	}
-	upsert := true
-	_, err := users.UpdateOne(
-		c.ctx,
-		bson.M{"user_id": userId},
-		bson.D{bson.E{Key: "$set", Value: update}},
-		&options.UpdateOptions{Upsert: &upsert},
-	)
-	return err
-}
-
-// UpdateTotp sets the TOTP for the given user ID.
-func (c *controller) UpdateTotp(enabled bool, totp, userId string) error {
-	users := c.Users()
-	now, _ := time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
-	update := primitive.D{
-		bson.E{Key: "totp_enabled", Value: enabled},
-		bson.E{Key: "totp", Value: totp},
-		bson.E{Key: "updated_at", Value: now},
-	}
-	upsert := true
-	_, err := users.UpdateOne(
-		c.ctx,
-		bson.M{"user_id": userId},
-		bson.D{bson.E{Key: "$set", Value: update}},
-		&options.UpdateOptions{Upsert: &upsert},
-	)
-	return err
 }
