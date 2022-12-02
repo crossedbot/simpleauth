@@ -14,6 +14,7 @@ import (
 )
 
 const (
+	// Database dialects
 	DialectMongoDb   = "mongodb"
 	DialectMySQL     = "mysql"
 	DialectPostgres  = "prostgres"
@@ -22,21 +23,36 @@ const (
 )
 
 var (
+	// Errors
 	ErrUserExists = errors.New("The username, email or phone number already exists")
 )
 
+// Database represents an interface to the authentication database and the
+// management of users.
 type Database interface {
+	// GetUser returns the user for the given user ID. This ID is not to be
+	// confused with the records ID in the table but the generated value for the
+	// user_id field.
 	GetUser(id string) (models.User, error)
 
+	// GetUserByName returns the user for the given name. This name can be
+	// either the username or email address of the user as an identifier.
 	GetUserByName(name string) (models.User, error)
 
+	// SaveUser adds the given user to the database. It should fill in the
+	// remaining fields like the record and user ID.
 	SaveUser(user models.User) (models.User, error)
 
+	// UpdateTotp updates the TOTP state of the user for the given user ID.
+	// Either enabling TOTP and/or setting its value itself.
 	UpdateTotp(enable bool, totp, userId string) error
 
+	// UpdateTokens updates the user's access and refresh token for the given
+	// user ID.
 	UpdateTokens(token, refreshToken, userId string) error
 }
 
+// database represents an authentication database.
 type database struct {
 	Ctx     context.Context
 	Dialect string
@@ -44,11 +60,18 @@ type database struct {
 	Db      cdb.Database
 }
 
+// New returns a new authentication database for the context, dialect, and URI
+// path to the database. For accepted dialects see the Dialect* constants, E.g.
+// DialectMongoDb.
 func New(ctx context.Context, dialect, path string) (Database, error) {
 	dialect = strings.ToLower(dialect)
 	if dialect == DialectMongoDb {
+		// If dialect is mongodb return that as the database instead of the
+		// common GORM wrapper.
 		return NewMongoDB(ctx, path)
 	}
+	// The default behavior is to use create a new common DB that which is a
+	// wrapper for GORM.
 	db := &database{
 		Ctx:     ctx,
 		Dialect: dialect,
@@ -80,6 +103,8 @@ func (db *database) GetUserByName(name string) (models.User, error) {
 }
 
 func (db *database) SaveUser(user models.User) (models.User, error) {
+	// Check if the user's username, email, or phone number already exists, if
+	// they do the user is considered to exist and an error is returned.
 	user.Username = strings.ToLower(user.Username)
 	user.Email = strings.ToLower(user.Email)
 	query := "username = ?"
@@ -97,11 +122,12 @@ func (db *database) SaveUser(user models.User) (models.User, error) {
 	if err != nil && err != gorm.ErrRecordNotFound {
 		return models.User{}, err
 	} else if err == gorm.ErrRecordNotFound {
-		// Create the user if no record was found
+		// If no record was found, generate a new user ID and create the user
 		user.UserId = uuid.New().String()
 		if err := db.Db.SaveTx(&user); err != nil {
 			return models.User{}, err
 		}
+		// Return the new user
 		return db.GetUser(user.UserId)
 	}
 	return models.User{}, ErrUserExists

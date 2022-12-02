@@ -13,12 +13,15 @@ import (
 	"github.com/crossedbot/simpleauth/pkg/models"
 )
 
+// mongodb represents a authentication DB that uses MongoDB as database
+// technology.
 type mongodb struct {
 	Ctx  context.Context
 	Path string
 	Db   *mongo.Client
 }
 
+// NewMongoDB returns a new MongoDB authentication database.
 func NewMongoDB(ctx context.Context, path string) (Database, error) {
 	client, err := mongo.NewClient(options.Client().ApplyURI(path))
 	if err != nil {
@@ -86,6 +89,10 @@ func (db *mongodb) SaveUser(user models.User) (models.User, error) {
 	if userCount > 0 {
 		return models.User{}, ErrUserExists
 	}
+	// Here we need to generate not only the user ID but the object ID as well
+	// because mongo does not do this implicitly like a traditional relational
+	// database would. Also it should be mentioned that this a byte array and
+	// not some incremented integer.
 	user.ObjectId = primitive.NewObjectID()
 	user.UserId = user.ObjectId.Hex()
 	if _, err := db.Users().InsertOne(db.Ctx, user); err != nil {
@@ -130,6 +137,7 @@ func (db *mongodb) UpdateTokens(token, refreshToken, userId string) error {
 	return err
 }
 
+// Users is a short-hand function and returns the auth.users collection.
 func (db *mongodb) Users() *mongo.Collection {
 	return db.Db.Database("auth").Collection("users")
 }
