@@ -2,13 +2,16 @@ package auth
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/crossedbot/simplejwt/algorithms"
 )
 
+// KTy represents a cryptographic key type.
 type KTy int
 
 const (
+	// Key types
 	KTyUnknown KTy = 0
 	KTyECDSA   KTy = 1
 	KTyHMAC    KTy = 2
@@ -18,6 +21,7 @@ const (
 )
 
 var (
+	// KTyNames maps key types to string representations
 	KTyNames = map[KTy]string{
 		KTyUnknown: "UNKNOWN",
 		KTyECDSA:   "ECDSA",
@@ -26,6 +30,7 @@ var (
 		KTyRSAPSS:  "RSAPSS",
 		KTyEd25519: "ED25519",
 	}
+	// KTyValues maps key type names to values
 	KTyValues = map[string]KTy{
 		"UNKNOWN": KTyUnknown,
 		"ECDSA":   KTyECDSA,
@@ -36,7 +41,9 @@ var (
 	}
 )
 
+// ToKTy returns the key type for the given string.
 func ToKTy(s string) KTy {
+	s = strings.ToUpper(s)
 	kty, ok := KTyValues[s]
 	if !ok {
 		return KTyUnknown
@@ -44,6 +51,7 @@ func ToKTy(s string) KTy {
 	return kty
 }
 
+// String returns the string representation of the given key type.
 func (kty KTy) String() string {
 	if int(kty) < len(KTyNames) {
 		return KTyNames[kty]
@@ -51,9 +59,11 @@ func (kty KTy) String() string {
 	return KTyNames[KTyUnknown]
 }
 
+// Alg represents a hashing algorithm.
 type Alg int
 
 const (
+	// Hasing algorithms
 	AlgUnknown Alg = 0
 	AlgSHA256  Alg = 1
 	AlgSHA384  Alg = 2
@@ -61,12 +71,14 @@ const (
 )
 
 var (
+	// AlgNames maps algorithms to a string representation.
 	AlgNames = map[Alg]string{
 		AlgUnknown: "UNKNOWN",
 		AlgSHA256:  "SHA256",
 		AlgSHA384:  "SHA384",
 		AlgSHA512:  "SHA512",
 	}
+	// AlgValues maps algorithm names to values.
 	AlgValues = map[string]Alg{
 		"UNKNOWN": AlgUnknown,
 		"SHA256":  AlgSHA256,
@@ -75,7 +87,9 @@ var (
 	}
 )
 
+// ToAlg returns the hashing algorithm for the given string.
 func ToAlg(s string) Alg {
+	s = strings.ToUpper(s)
 	alg, ok := AlgValues[s]
 	if !ok {
 		return AlgUnknown
@@ -83,6 +97,7 @@ func ToAlg(s string) Alg {
 	return alg
 }
 
+// String returns the string representation of the given hashing algorithm.
 func (alg Alg) String() string {
 	if int(alg) < len(AlgNames) {
 		return AlgNames[alg]
@@ -90,6 +105,7 @@ func (alg Alg) String() string {
 	return AlgNames[AlgUnknown]
 }
 
+// KeyAlgorithms maps a key type to a map of available hashing algorithms.
 var KeyAlgorithms = map[KTy]map[Alg]algorithms.SigningAlgorithm{
 	KTyECDSA: {
 		AlgSHA256: algorithms.AlgorithmEC256,
@@ -115,6 +131,8 @@ var KeyAlgorithms = map[KTy]map[Alg]algorithms.SigningAlgorithm{
 	},
 }
 
+// GetSigningAlogrithm returns the signing algorithm for the given key type and
+// hashing algorithm.
 func GetSigningAlgorithm(kty KTy, alg Alg) (algorithms.SigningAlgorithm, error) {
 	sa := KeyAlgorithms[kty][alg]
 	if sa == nil {

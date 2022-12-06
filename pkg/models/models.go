@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"time"
 
 	"gorm.io/gorm"
 )
@@ -35,23 +36,24 @@ var (
 
 // User models a user in the authentication service.
 type User struct {
-	// TODO probably don't want to use gorm.Model here since there is no control
-	// over the tags.
-	gorm.Model
-	FirstName    string  `json:"first_name"`
-	LastName     string  `json:"last_name"`
-	Password     string  `json:"password"`
-	Email        string  `json:"email"`
-	Username     string  `json:"username"`
-	Phone        string  `json:"phone"`
-	UserType     string  `json:"user_type"`
-	UserId       string  `json:"user_id"`
-	Token        string  `json:"-"`
-	RefreshToken string  `json:"-"`
-	TotpEnabled  bool    `json:"totp_enabled"`
-	Totp         string  `json:"-"`
-	Options      Options `gorm:"serializer:json" json:"options"`
-	PublicKey    string  `json:"public_key"`
+	ID           uint           `gorm:"primarykey" json:"-"`
+	CreatedAt    time.Time      `json:"created_at"`
+	UpdatedAt    time.Time      `json:"updated_at"`
+	DeletedAt    gorm.DeletedAt `gorm:"index" json:"-"`
+	FirstName    string         `json:"first_name"`
+	LastName     string         `json:"last_name"`
+	Password     string         `json:"password"`
+	Email        string         `json:"email"`
+	Username     string         `json:"username"`
+	Phone        string         `json:"phone"`
+	UserType     string         `json:"user_type"`
+	UserId       string         `json:"user_id"`
+	Token        string         `json:"-"`
+	RefreshToken string         `json:"-"`
+	TotpEnabled  bool           `json:"totp_enabled"`
+	Totp         string         `json:"-"`
+	Options      Options        `gorm:"serializer:json" json:"options"`
+	PublicKey    string         `json:"public_key"`
 }
 
 // Valid returns nil when the user is valid, otherwise an error is returned.

@@ -11,18 +11,22 @@ import (
 	"github.com/crossedbot/simpleauth/pkg/auth"
 )
 
+// Base64URLEncode returns a base64 URL encoded string for the given bytes.
 func Base64URLEncode(b []byte) string {
 	return base64.URLEncoding.EncodeToString(b)
 }
 
+// Base64URLEncode returns the bytes for the given base64 URL encoded string.
 func Base64URLDecode(s string) ([]byte, error) {
 	return base64.URLEncoding.DecodeString(s)
 }
 
+// Encode returns a base64 (w/o padding) encoded string for the given bytes.
 func Encode(v []byte) string {
 	return strings.TrimRight(Base64URLEncode(v), "=")
 }
 
+// Encode returns the bytes for a base64 (w/o padding) encoded string.
 func Decode(s string) ([]byte, error) {
 	if l := len(s) % 4; l > 0 {
 		padding := strings.Repeat("=", 4-l)
@@ -31,6 +35,7 @@ func Decode(s string) ([]byte, error) {
 	return Base64URLDecode(s)
 }
 
+// EncodeJSON returns the encoded string for a given data struct.
 func EncodeJSON(data interface{}) (string, error) {
 	v, err := json.Marshal(data)
 	if err != nil {
@@ -39,6 +44,8 @@ func EncodeJSON(data interface{}) (string, error) {
 	return Encode(v), nil
 }
 
+// DecodeJSON sets the given data struct to the decoded bytes of the given
+// string.
 func DecodeJSON(s string, v interface{}) error {
 	b, err := Decode(s)
 	if err != nil {
