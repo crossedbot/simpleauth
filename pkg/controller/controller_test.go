@@ -54,14 +54,6 @@ hPHNe224A/Xn4SFCrqMikraHN64gscxhwcUCYkcwO9OcK5VKLcDqtfEs50nsjKV/
 aQIDAQAB
 -----END PUBLIC KEY-----`
 
-func TestSetDatabase(t *testing.T) {
-	ctx := context.Background()
-	ctr := &controller{ctx, nil, nil, nil, jwk.Certificate{}, ""}
-	require.Nil(t, ctr.db)
-	ctr.SetDatabase("mongodb", "mongodb://127.0.0.1:27017")
-	require.NotNil(t, ctr.db)
-}
-
 func TestSetAuthPrivateKey(t *testing.T) {
 	ctx := context.Background()
 	ctr := &controller{ctx, nil, nil, nil, jwk.Certificate{}, ""}

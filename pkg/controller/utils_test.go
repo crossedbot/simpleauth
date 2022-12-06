@@ -115,7 +115,7 @@ func TestGenerateTokens(t *testing.T) {
 	require.Nil(t, err)
 	require.Equal(t, user.UserId,
 		parsedTkn.Claims.Get(middleware.ClaimUserId))
-	expectedGrantsStr := grants.Grant(grants.GrantAuthenticated | 0x070000)
+	expectedGrantsStr := grants.Grant(grants.GrantAuthenticated | 0x07000000)
 	require.Equal(t, expectedGrantsStr.Short(),
 		parsedTkn.Claims.Get(middleware.ClaimGrant))
 	require.Equal(t, user.UserId,

@@ -5,9 +5,8 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
-	"time"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
+	"gorm.io/gorm"
 )
 
 const (
@@ -36,23 +35,23 @@ var (
 
 // User models a user in the authentication service.
 type User struct {
-	ObjectId     primitive.ObjectID `bson:"_id" gorm:"-" json:"-"`
-	Id           uint               `bson:"-" gorm:"primarykey" json:"-"`
-	FirstName    string             `bson:"first_name" json:"first_name"`
-	LastName     string             `bson:"last_name" json:"last_name"`
-	Password     string             `bson:"password" json:"password"`
-	Email        string             `bson:"email" json:"email"`
-	Username     string             `bson:"username" json:"username"`
-	Phone        string             `bson:"phone" json:"phone"`
-	UserType     string             `bson:"user_type" json:"user_type"`
-	CreatedAt    time.Time          `bson:"created_at" json:"created_at"`
-	UpdatedAt    time.Time          `bson:"updated_at" json:"updated_at"`
-	UserId       string             `bson:"user_id" json:"user_id"`
-	Token        string             `bson:"token" json:"-"`
-	RefreshToken string             `bson:"refresh_token" json:"-"`
-	TotpEnabled  bool               `bson:"totp_enabled" json:"totp_enabled"`
-	Totp         string             `bson:"totp" json:"-"`
-	Options      Options            `bson:"options" gorm:"serializer:json" json:"options"`
+	// TODO probably don't want to use gorm.Model here since there is no control
+	// over the tags.
+	gorm.Model
+	FirstName    string  `json:"first_name"`
+	LastName     string  `json:"last_name"`
+	Password     string  `json:"password"`
+	Email        string  `json:"email"`
+	Username     string  `json:"username"`
+	Phone        string  `json:"phone"`
+	UserType     string  `json:"user_type"`
+	UserId       string  `json:"user_id"`
+	Token        string  `json:"-"`
+	RefreshToken string  `json:"-"`
+	TotpEnabled  bool    `json:"totp_enabled"`
+	Totp         string  `json:"-"`
+	Options      Options `gorm:"serializer:json" json:"options"`
+	PublicKey    string  `json:"public_key"`
 }
 
 // Valid returns nil when the user is valid, otherwise an error is returned.

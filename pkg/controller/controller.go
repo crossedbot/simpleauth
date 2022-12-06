@@ -26,62 +26,72 @@ const (
 	DefaultTotpDigits      = 6
 	DefaultPrivateKey      = "~/.simpleauth/simpleauth.key"
 	DefaultCertificate     = "~/.simpleauth/simpleauth.cert"
-	DefaultDatabasePath    = "mongodb://127.0.0.1:27017"
-	DefaultDatabaseDialect = database.DialectMongoDb
+	DefaultDatabasePath    = "postgresql://postgres@127.0.0.1:5432/auth"
+	DefaultDatabaseDialect = database.DialectPostgres
 )
 
 var (
 	// Errors
-	ErrorUserNotFound     = errors.New("User not found")
-	ErrorUserExists       = errors.New("The username, email or phone number already exists")
-	ErrorBadCredentials   = errors.New("The username or password is incorrect")
-	ErrorUsernameRequired = errors.New("Username/Email is required")
-	ErrorPasswordRequired = errors.New("Password is required")
-	ErrorTotpNotFound     = errors.New("TOTP not set for user")
+	ErrorUserNotFound      = errors.New("User not found")
+	ErrorUserExists        = errors.New("The username, email or phone number already exists")
+	ErrorBadCredentials    = errors.New("The username or password is incorrect")
+	ErrorUsernameRequired  = errors.New("Username/Email is required")
+	ErrorPasswordRequired  = errors.New("Password is required")
+	ErrorPublicKeyRequired = errors.New("Public key is required")
+	ErrorTotpNotFound      = errors.New("TOTP not set for user")
+	ErrorPublicKeyNotFound = errors.New("A public key is not set for this user")
 )
 
 // Controller represents an interface to an authentication service.
 type Controller interface {
-	// SetDatabase sets the user database for the authentication service at
-	// the given address.
-	SetDatabase(dialect, path string) error
+	// GetJwks returns the JSON web key of the authentication service.
+	GetJwks() (jwk.Jwks, error)
 
-	// SetAuthPrivateKey sets the JWT private key for generating access
-	// tokens.
-	SetAuthPrivateKey(io.Reader) error
-
-	// SetAuthCert sets the authentication service JSON web key for
-	// validating access tokens.
-	SetAuthCert(io.Reader) error
-
-	// SetTotpIssuer sets the TOTP issuer for the authentication service.
-	SetTotpIssuer(issuer string)
+	// GetOtpQr returns an image of the QR code for the given user ID.
+	GetOtpQr(id string) ([]byte, error)
 
 	// Login returns a new AccessToken for the given login request.
 	// Effectively, logging in the user for as long the token remains valid.
-	Login(models.Login) (models.AccessToken, error)
+	Login(login models.Login) (models.AccessToken, error)
 
-	// SignUp adds the given user to the authentication service and returns
-	// a new Accesstoken.
-	SignUp(models.User) (models.AccessToken, error)
+	// LoginWithPublicKey returns a new AccessToken for the given public key
+	// authentication request.
+	LoginWithPublicKey(pubKey models.SignedPublicKey) (models.AccessToken, error)
+
+	// RegisterPublicKey registers the public authentication key for the given
+	// user.
+	RegisterPublicKey(signedKey models.SignedPublicKey) error
+
+	// SetAuthCert sets the authentication service JSON web key for
+	// validating access tokens.
+	SetAuthCert(cert io.Reader) error
+
+	// SetAuthPrivateKey sets the JWT private key for generating access
+	// tokens.
+	SetAuthPrivateKey(privKey io.Reader) error
+
+	// SetDatabase sets the user database for the authentication service at
+	// the given address.
+	SetDatabase(dialect, path string) error
 
 	// SetTotp sets the TOTP for the given user ID. Implementations, should
 	// only enable/disable TOTP for the given user.
 	SetTotp(id string, totp models.Totp) (models.Totp, error)
 
-	// ValidateOtp returns a new AccessToken if the given OTP was valid for
-	// the user ID.
-	ValidateOtp(id, otp string) (models.AccessToken, error)
+	// SetTotpIssuer sets the TOTP issuer for the authentication service.
+	SetTotpIssuer(issuer string)
 
-	// GetOtpQr returns an image of the QR code for the given user ID.
-	GetOtpQr(id string) ([]byte, error)
+	// SignUp adds the given user to the authentication service and returns
+	// a new Accesstoken.
+	SignUp(user models.User) (models.AccessToken, error)
 
 	// RefreshToken returns a new AccessToken for the given user ID.
 	// Effectively, refreshing the authenticated access.
 	RefreshToken(id string) (models.AccessToken, error)
 
-	// GetJwks returns the JSON web key of the authentication service.
-	GetJwks() (jwk.Jwks, error)
+	// ValidateOtp returns a new AccessToken if the given OTP was valid for
+	// the user ID.
+	ValidateOtp(id, otp string) (models.AccessToken, error)
 }
 
 // controller implements the authentication service interface.
@@ -162,22 +172,95 @@ func New(
 	return &controller{ctx, db, privateKey, publicKey, cert, totpIssuer}
 }
 
-func (c *controller) SetDatabase(dialect, path string) error {
-	db, err := database.New(c.ctx, dialect, path)
-	if err != nil {
-		return err
+func (c *controller) GenerateTokens(user models.User) (models.AccessToken, error) {
+	options := &TokenOptions{}
+	if user.TotpEnabled {
+		// If TOTP is enabled then we only need a short-lived access
+		// token to complete the OTP transaction.
+		options.Grant = grants.GrantOTPValidate
+		options.TTL = TransactionTokenExpiration
+		options.SkipRefresh = true
 	}
-	c.db = db
-	return nil
+	tkn, refreshTkn, err := GenerateTokens(user, c.publicKey, c.privateKey,
+		options)
+	if err != nil {
+		return models.AccessToken{}, err
+	}
+	if err := c.db.UpdateTokens(tkn, refreshTkn, user.UserId); err != nil {
+		return models.AccessToken{}, err
+	}
+	return models.AccessToken{
+		Token:        tkn,
+		RefreshToken: refreshTkn,
+		OtpRequired:  user.TotpEnabled,
+	}, nil
 }
 
-func (c *controller) SetAuthPrivateKey(privKey io.Reader) error {
-	b, err := io.ReadAll(privKey)
+func (c *controller) GetJwks() (jwk.Jwks, error) {
+	webKey, err := c.cert.ToJwk()
+	return jwk.Jwks{Keys: []jwk.Jwk{webKey}}, err
+}
+
+func (c *controller) GetOtpQr(id string) ([]byte, error) {
+	foundUser, err := c.db.GetUser(id)
+	if err != nil {
+		return nil, ErrorUserNotFound
+	}
+	if foundUser.Totp != "" {
+		totp, err := DecodeTotp(foundUser.Totp, c.issuer)
+		if err != nil {
+			return nil, err
+		}
+		return totp.QR()
+	}
+	return nil, ErrorTotpNotFound
+}
+
+func (c *controller) Login(login models.Login) (models.AccessToken, error) {
+	login.Name = strings.ToLower(login.Name)
+	foundUser, err := c.db.GetUserByName(login.Name)
+	if err != nil {
+		return models.AccessToken{}, ErrorUserNotFound
+	}
+	if err := VerifyPassword(foundUser.Password, login.Password); err != nil {
+		return models.AccessToken{}, ErrorBadCredentials
+	}
+	return c.GenerateTokens(foundUser)
+}
+
+func (c *controller) LoginWithPublicKey(signedKey models.SignedPublicKey) (models.AccessToken, error) {
+	signedKey.User = strings.ToLower(signedKey.User)
+	foundUser, err := c.db.GetUserByName(signedKey.User)
+	if err != nil {
+		return models.AccessToken{}, err
+	}
+	if foundUser.PublicKey == "" {
+		return models.AccessToken{}, ErrorPublicKeyNotFound
+	}
+	key, err := models.Decode(foundUser.PublicKey)
+	if err != nil {
+		return models.AccessToken{}, err
+	}
+	if err := signedKey.Valid(key); err != nil {
+		return models.AccessToken{}, err
+	}
+	return c.GenerateTokens(foundUser)
+}
+
+func (c *controller) RegisterPublicKey(signedKey models.SignedPublicKey) error {
+	signedKey.User = strings.ToLower(signedKey.User)
+	foundUser, err := c.db.GetUserByName(signedKey.User)
 	if err != nil {
 		return err
 	}
-	c.privateKey = b
-	return nil
+	key, err := models.Decode(signedKey.PublicKey)
+	if err != nil {
+		return err
+	}
+	if err := signedKey.Valid(key); err != nil {
+		return err
+	}
+	return c.db.SetPublicKey(foundUser.UserId, signedKey.PublicKey)
 }
 
 func (c *controller) SetAuthCert(cert io.Reader) error {
@@ -194,76 +277,22 @@ func (c *controller) SetAuthCert(cert io.Reader) error {
 	return nil
 }
 
-func (c *controller) SetTotpIssuer(issuer string) {
-	c.issuer = issuer
+func (c *controller) SetAuthPrivateKey(privKey io.Reader) error {
+	b, err := io.ReadAll(privKey)
+	if err != nil {
+		return err
+	}
+	c.privateKey = b
+	return nil
 }
 
-func (c *controller) Login(login models.Login) (models.AccessToken, error) {
-	login.Name = strings.ToLower(login.Name)
-	foundUser, err := c.db.GetUserByName(login.Name)
+func (c *controller) SetDatabase(dialect, path string) error {
+	db, err := database.New(c.ctx, dialect, path)
 	if err != nil {
-		return models.AccessToken{}, ErrorUserNotFound
+		return err
 	}
-	if err := VerifyPassword(foundUser.Password, login.Password); err != nil {
-		return models.AccessToken{}, ErrorBadCredentials
-	}
-	tkn := ""
-	refreshTkn := ""
-	options := &TokenOptions{}
-	if foundUser.TotpEnabled {
-		// If TOTP is enabled then we only need a short-lived access
-		// token to complete the OTP transaction.
-		options.Grant = grants.GrantOTPValidate
-		options.TTL = TransactionTokenExpiration
-		options.SkipRefresh = true
-	}
-	tkn, refreshTkn, err = GenerateTokens(foundUser, c.publicKey,
-		c.privateKey, options)
-	if err != nil {
-		return models.AccessToken{}, err
-	}
-	if err := c.db.UpdateTokens(tkn, refreshTkn, foundUser.UserId); err != nil {
-		return models.AccessToken{}, err
-	}
-	return models.AccessToken{
-		Token:        tkn,
-		RefreshToken: refreshTkn,
-		OtpRequired:  foundUser.TotpEnabled,
-	}, nil
-}
-
-func (c *controller) SignUp(user models.User) (models.AccessToken, error) {
-	user.Username = strings.ToLower(user.Username)
-	user.Email = strings.ToLower(user.Email)
-	if err := user.Valid(); err != nil {
-		return models.AccessToken{}, err
-	}
-	hashedPass, err := HashPassword(user.Password)
-	if err != nil {
-		return models.AccessToken{}, err
-	}
-	now, _ := time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
-	user.UserType = strings.ToUpper(user.UserType)
-	user.Password = hashedPass
-	user.CreatedAt = now
-	user.UpdatedAt = now
-	tkn, refreshTkn, err := GenerateTokens(user, c.publicKey, c.privateKey,
-		nil)
-	if err != nil {
-		return models.AccessToken{}, err
-	}
-	user.Token = tkn
-	user.RefreshToken = refreshTkn
-	user, err = c.db.SaveUser(user)
-	if err != nil {
-		return models.AccessToken{}, err
-	}
-	c.SetTotp(user.UserId, models.Totp{Enabled: user.TotpEnabled})
-	return models.AccessToken{
-		Token:        tkn,
-		RefreshToken: refreshTkn,
-		OtpRequired:  user.TotpEnabled,
-	}, err
+	c.db = db
+	return nil
 }
 
 func (c *controller) SetTotp(id string, totp models.Totp) (models.Totp, error) {
@@ -305,6 +334,53 @@ func (c *controller) SetTotp(id string, totp models.Totp) (models.Totp, error) {
 	return totp, nil
 }
 
+func (c *controller) SetTotpIssuer(issuer string) {
+	c.issuer = issuer
+}
+
+func (c *controller) SignUp(user models.User) (models.AccessToken, error) {
+	user.Username = strings.ToLower(user.Username)
+	user.Email = strings.ToLower(user.Email)
+	if err := user.Valid(); err != nil {
+		return models.AccessToken{}, err
+	}
+	hashedPass, err := HashPassword(user.Password)
+	if err != nil {
+		return models.AccessToken{}, err
+	}
+	now, _ := time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
+	user.UserType = strings.ToUpper(user.UserType)
+	user.Password = hashedPass
+	user.CreatedAt = now
+	user.UpdatedAt = now
+	user, err = c.db.SaveUser(user)
+	if err != nil {
+		return models.AccessToken{}, err
+	}
+	c.SetTotp(user.UserId, models.Totp{Enabled: user.TotpEnabled})
+	return c.GenerateTokens(user)
+}
+
+func (c *controller) RefreshToken(id string) (models.AccessToken, error) {
+	foundUser, err := c.db.GetUser(id)
+	if err != nil {
+		return models.AccessToken{}, ErrorUserNotFound
+	}
+	tkn, refreshTkn, err := GenerateTokens(foundUser, c.publicKey,
+		c.privateKey, nil)
+	if err != nil {
+		return models.AccessToken{}, err
+	}
+	if err := c.db.UpdateTokens(tkn, refreshTkn, foundUser.UserId); err != nil {
+		return models.AccessToken{}, err
+	}
+	return models.AccessToken{
+		Token:        tkn,
+		RefreshToken: refreshTkn,
+		OtpRequired:  foundUser.TotpEnabled,
+	}, nil
+}
+
 func (c *controller) ValidateOtp(id, otp string) (models.AccessToken, error) {
 	foundUser, err := c.db.GetUser(id)
 	if err != nil {
@@ -330,44 +406,4 @@ func (c *controller) ValidateOtp(id, otp string) (models.AccessToken, error) {
 		RefreshToken: refreshTkn,
 		OtpRequired:  foundUser.TotpEnabled,
 	}, nil
-}
-
-func (c *controller) GetOtpQr(id string) ([]byte, error) {
-	foundUser, err := c.db.GetUser(id)
-	if err != nil {
-		return nil, ErrorUserNotFound
-	}
-	if foundUser.Totp != "" {
-		totp, err := DecodeTotp(foundUser.Totp, c.issuer)
-		if err != nil {
-			return nil, err
-		}
-		return totp.QR()
-	}
-	return nil, ErrorTotpNotFound
-}
-
-func (c *controller) RefreshToken(id string) (models.AccessToken, error) {
-	foundUser, err := c.db.GetUser(id)
-	if err != nil {
-		return models.AccessToken{}, ErrorUserNotFound
-	}
-	tkn, refreshTkn, err := GenerateTokens(foundUser, c.publicKey,
-		c.privateKey, nil)
-	if err != nil {
-		return models.AccessToken{}, err
-	}
-	if err := c.db.UpdateTokens(tkn, refreshTkn, foundUser.UserId); err != nil {
-		return models.AccessToken{}, err
-	}
-	return models.AccessToken{
-		Token:        tkn,
-		RefreshToken: refreshTkn,
-		OtpRequired:  foundUser.TotpEnabled,
-	}, nil
-}
-
-func (c *controller) GetJwks() (jwk.Jwks, error) {
-	webKey, err := c.cert.ToJwk()
-	return jwk.Jwks{Keys: []jwk.Jwk{webKey}}, err
 }

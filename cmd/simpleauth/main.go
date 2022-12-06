@@ -65,6 +65,9 @@ func run(ctx context.Context) error {
 	if err := config.Load(&c); err != nil {
 		return err
 	}
+	// Call the controller to initialize it and ensure no problems before the
+	// server request.
+	controller.Ctrl()
 	srv := newServer(c)
 	if err := srv.Start(); err != nil {
 		return err
