@@ -353,12 +353,18 @@ func (c *controller) SignUp(user models.User) (models.AccessToken, error) {
 	user.Password = hashedPass
 	user.CreatedAt = now
 	user.UpdatedAt = now
+	enableTotp := user.TotpEnabled
+	user.TotpEnabled = false
 	user, err = c.db.SaveUser(user)
 	if err != nil {
 		return models.AccessToken{}, err
 	}
-	c.SetTotp(user.UserId, models.Totp{Enabled: user.TotpEnabled})
-	return c.GenerateTokens(user)
+	tkns, err := c.GenerateTokens(user)
+	if err != nil {
+		return models.AccessToken{}, err
+	}
+	_, err = c.SetTotp(user.UserId, models.Totp{Enabled: enableTotp})
+	return tkns, err
 }
 
 func (c *controller) RefreshToken(id string) (models.AccessToken, error) {
