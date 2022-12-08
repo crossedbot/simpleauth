@@ -80,6 +80,7 @@ func TestToGrant(t *testing.T) {
 				GrantStrings[GrantOTPValidate],
 				GrantStrings[GrantOTPQR],
 				GrantStrings[GrantUsersRefresh],
+				GrantStrings[GrantKeysRegister],
 			}, ","),
 			GrantAuthenticated, nil,
 		},
@@ -116,15 +117,15 @@ func TestToGrantCustom(t *testing.T) {
 		Expected    Grant
 		ExpectedErr error
 	}{
-		{customGrants[2], Grant(0x010000), nil},
-		{customGrants[3], Grant(0x020000), nil},
-		{customGrants[4], Grant(0x040000), nil},
+		{customGrants[2], Grant(0x01000000), nil},
+		{customGrants[3], Grant(0x02000000), nil},
+		{customGrants[4], Grant(0x04000000), nil},
 		{
 			strings.Join([]string{
 				customGrants[2],
 				customGrants[4],
 			}, ","),
-			Grant(0x050000), nil,
+			Grant(0x05000000), nil,
 		},
 		{
 			strings.Join([]string{
@@ -132,7 +133,7 @@ func TestToGrantCustom(t *testing.T) {
 				customGrants[3],
 				customGrants[4],
 			}, ","),
-			Grant(0x070000), nil,
+			Grant(0x07000000), nil,
 		},
 	}
 	err := SetCustomGrants(customGrants)
@@ -152,15 +153,15 @@ func TestGetCustomGrant(t *testing.T) {
 	}{
 		{
 			[]string{},
-			Grant(0x010000) | Grant(0x020000) | Grant(0x040000),
+			Grant(0x01000000) | Grant(0x02000000) | Grant(0x04000000),
 		},
 		{
 			[]string{"this", "those"},
-			Grant(0x010000) | Grant(0x040000),
+			Grant(0x01000000) | Grant(0x04000000),
 		},
 		{
 			[]string{"that"},
-			Grant(0x020000),
+			Grant(0x02000000),
 		},
 		{
 			[]string{"not"},
@@ -252,9 +253,9 @@ func TestGrantShortCustom(t *testing.T) {
 		Grant    Grant
 		Expected string
 	}{
-		{Grant(0x010000), customGrants[0]},
-		{Grant(0x020000), customGrants[1]},
-		{Grant(0x040000), customGrants[2]},
+		{Grant(0x01000000), customGrants[0]},
+		{Grant(0x02000000), customGrants[1]},
+		{Grant(0x04000000), customGrants[2]},
 		{GetCustomGrant(), customGrantsStr},
 		{
 			GrantAuthenticated | GetCustomGrant(),
@@ -332,26 +333,26 @@ func TestGrantStringCustom(t *testing.T) {
 		Grant    Grant
 		Expected string
 	}{
-		{Grant(0x010000), customGrants[0]},
-		{Grant(0x020000), customGrants[1]},
-		{Grant(0x040000), customGrants[2]},
+		{Grant(0x01000000), customGrants[0]},
+		{Grant(0x02000000), customGrants[1]},
+		{Grant(0x04000000), customGrants[2]},
 		{
-			Grant(0x050000),
+			Grant(0x05000000),
 			strings.Join([]string{
 				customGrants[0],
 				customGrants[2],
 			}, ","),
 		},
 		{
-			Grant(0x070000),
+			Grant(0x07000000),
 			strings.Join([]string{
 				customGrants[0],
 				customGrants[1],
 				customGrants[2],
 			}, ","),
 		},
-		{Grant(0x080000), GrantStrings[GrantUnknown]},
-		{Grant(0x100000), GrantStrings[GrantUnknown]},
+		{Grant(0x08000000), GrantStrings[GrantUnknown]},
+		{Grant(0x10000000), GrantStrings[GrantUnknown]},
 	}
 	err := SetCustomGrants(customGrants)
 	require.Nil(t, err)

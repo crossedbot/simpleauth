@@ -15,7 +15,6 @@ import (
 
 const (
 	// Database dialects
-	DialectMongoDb   = "mongodb"
 	DialectMySQL     = "mysql"
 	DialectPostgres  = "prostgres"
 	DialectSqlite3   = "sqlite3"
@@ -43,6 +42,10 @@ type Database interface {
 	// remaining fields like the record and user ID.
 	SaveUser(user models.User) (models.User, error)
 
+	// SetPublicKey updates the user for the given user ID and sets the user's
+	// public key.
+	SetPublicKey(userId, pubKey string) error
+
 	// UpdateTotp updates the TOTP state of the user for the given user ID.
 	// Either enabling TOTP and/or setting its value itself.
 	UpdateTotp(enable bool, totp, userId string) error
@@ -62,16 +65,9 @@ type database struct {
 
 // New returns a new authentication database for the context, dialect, and URI
 // path to the database. For accepted dialects see the Dialect* constants, E.g.
-// DialectMongoDb.
+// DialectPostgres.
 func New(ctx context.Context, dialect, path string) (Database, error) {
 	dialect = strings.ToLower(dialect)
-	if dialect == DialectMongoDb {
-		// If dialect is mongodb return that as the database instead of the
-		// common GORM wrapper.
-		return NewMongoDB(ctx, path)
-	}
-	// The default behavior is to use create a new common DB that which is a
-	// wrapper for GORM.
 	db := &database{
 		Ctx:     ctx,
 		Dialect: dialect,
@@ -131,6 +127,11 @@ func (db *database) SaveUser(user models.User) (models.User, error) {
 		return db.GetUser(user.UserId)
 	}
 	return models.User{}, ErrUserExists
+}
+
+func (db *database) SetPublicKey(userId, pubKey string) error {
+	value := models.User{PublicKey: pubKey}
+	return db.Db.UpdateTx(value, "user_id = ?", userId)
 }
 
 func (db *database) UpdateTotp(enable bool, totp, userId string) error {

@@ -72,6 +72,74 @@ func Login(w http.ResponseWriter, r *http.Request, p server.Parameters) {
 	server.JsonResponse(w, &tkn, http.StatusOK)
 }
 
+// LoginWithPublicKey handles a request to login via public key authentication.
+func LoginWithPublicKey(w http.ResponseWriter, r *http.Request, p server.Parameters) {
+	var signedKey models.SignedPublicKey
+	if err := json.NewDecoder(r.Body).Decode(&signedKey); err != nil {
+		logger.Error(err)
+		server.JsonResponse(w, server.Error{
+			Code: server.ErrFailedConversionCode,
+			Message: fmt.Sprintf(
+				"Failed to parse request body; %s",
+				err,
+			),
+		}, http.StatusBadRequest)
+		return
+	}
+	tkn, err := Ctrl().LoginWithPublicKey(signedKey)
+	if err != nil {
+		logger.Error(err)
+		server.JsonResponse(w, server.Error{
+			Code: server.ErrProcessingRequestCode,
+			Message: fmt.Sprintf(
+				"Failed public key authentication: %s",
+				err,
+			),
+		}, http.StatusInternalServerError)
+		return
+	}
+	server.JsonResponse(w, &tkn, http.StatusOK)
+}
+
+// RegisterPublicKey handles a request to register the public key for a given
+// user.
+func RegisterPublicKey(w http.ResponseWriter, r *http.Request, p server.Parameters) {
+	var signedKey models.SignedPublicKey
+	if err := json.NewDecoder(r.Body).Decode(&signedKey); err != nil {
+		logger.Error(err)
+		server.JsonResponse(w, server.Error{
+			Code: server.ErrFailedConversionCode,
+			Message: fmt.Sprintf(
+				"Failed to parse request body; %s",
+				err,
+			),
+		}, http.StatusBadRequest)
+		return
+	}
+	if signedKey.PublicKey == "" {
+		server.JsonResponse(w, server.Error{
+			Code: server.ErrProcessingRequestCode,
+			Message: fmt.Sprintf(
+				"Failed to register public key: %s",
+				ErrorPublicKeyRequired,
+			),
+		}, http.StatusBadRequest)
+		return
+	}
+	if err := Ctrl().RegisterPublicKey(signedKey); err != nil {
+		logger.Error(err)
+		server.JsonResponse(w, server.Error{
+			Code: server.ErrProcessingRequestCode,
+			Message: fmt.Sprintf(
+				"Failed to register public key: %s",
+				err,
+			),
+		}, http.StatusInternalServerError)
+		return
+	}
+	server.JsonResponse(w, &signedKey, http.StatusOK)
+}
+
 // SignUp handles the response to a user signup request.
 func SignUp(w http.ResponseWriter, r *http.Request, p server.Parameters) {
 	var user models.User

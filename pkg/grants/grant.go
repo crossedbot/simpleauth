@@ -16,33 +16,39 @@ var (
 
 // Grant represents an access grant for interacting with the authentication
 // service.
-type Grant uint32
+type Grant uint64
 
 const (
 	GrantDelimiter  = ","
 	MaxCustomGrants = 8 // bits
 
 	// Grant Sections
-	GrantSectionOTP      Grant = 0x000000FE
-	GrantSectionUsers    Grant = 0x0000FF00
-	GrantSectionCustom   Grant = 0x00FF0000
-	GrantSectionReserved Grant = 0xFF000000
+	GrantSectionOTP      Grant = 0x00000000000000FE
+	GrantSectionUsers    Grant = 0x000000000000FF00
+	GrantSectionKeys     Grant = 0x0000000000FF0000
+	GrantSectionCustom   Grant = 0x00000000FF000000
+	GrantSectionReserved Grant = 0xFFFFFFFF00000000
 
 	// No grants
-	GrantUnknown Grant = 0x0000
-	GrantNone    Grant = 0x0001
+	GrantUnknown Grant = 0x00000000
+	GrantNone    Grant = 0x00000001
 
 	// OTP grants
-	GrantSetOTP      Grant = 0x0002
-	GrantOTPValidate Grant = 0x0004
-	GrantOTPQR       Grant = 0x0008
-	GrantOTP         Grant = 0x0002 | 0x0004 | 0x0008
+	GrantSetOTP      Grant = 0x00000002
+	GrantOTPValidate Grant = 0x00000004
+	GrantOTPQR       Grant = 0x00000008
+	GrantOTP         Grant = GrantSetOTP | GrantOTPValidate | GrantOTPQR
 
 	// User grants
-	GrantUsersRefresh Grant = 0x0100
+	GrantUsersRefresh Grant = 0x00000100
+	GrantUsers        Grant = GrantUsersRefresh
+
+	// Key grants
+	GrantKeysRegister Grant = 0x00010000
+	GrantKeys         Grant = GrantKeysRegister
 
 	// Authenticated grants
-	GrantAuthenticated Grant = 0x0002 | 0x0004 | 0x0008 | 0x0100
+	GrantAuthenticated Grant = GrantOTP | GrantUsers | GrantKeys
 
 	// Reserved
 	GrantFull Grant = 0xFFFFFFFE
@@ -57,6 +63,7 @@ var GrantStrings = map[Grant]string{
 	GrantOTPValidate:  "otp-validate",
 	GrantOTPQR:        "otp-qr",
 	GrantUsersRefresh: "users-refresh",
+	GrantKeysRegister: "keys-register",
 
 	// Short names
 	GrantOTP:           "otp-all",
@@ -148,7 +155,7 @@ func SetCustomGrants(grants []string) error {
 		// Only add grants that we don't know about
 		if t, _ := ToGrant(g); t == GrantUnknown {
 			i += 1
-			shift := 15 + i
+			shift := 23 + i
 			v = Grant((1 << shift) & GrantSectionCustom)
 			GrantStrings[v] = g
 		}

@@ -23,8 +23,8 @@ usage()
     where:
         -h  show this help text
         -c  configuration file location; default is '${HOME}/.simpleauth/config.toml'
-        -d  set authentication database address; default is 'mongodb://127.0.0.1:27017'
-        -e  set database dialect type; default is 'mongodb'
+        -d  set authentication database address; default is 'postgresql://postgres@127.0.0.1:5432/auth'
+        -e  set database dialect type; default is 'postgres'
         -p  set listening port of the HTTP service; default is '8080'
         -g  add an authentication grant"
         exit
@@ -34,8 +34,8 @@ usage()
 
 conf="${HOME}/.simpleauth/config.toml"
 port="8080"
-db_path="mongodb://127.0.0.1:27017"
-db_dialect="mongodb"
+db_path="postgresql://postgres@127.0.0.1:5432/auth"
+db_dialect="postgres"
 key="${HOME}/.simpleauth/key.pem"
 cert="${HOME}/.simpleauth/cert.pem"
 auth_grants=()

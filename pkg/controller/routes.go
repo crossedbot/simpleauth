@@ -28,6 +28,18 @@ var Routes = []server.Route{
 		ResponseSettings: []server.ResponseSetting{},
 	},
 	server.Route{
+		Handler:          middleware.Authorize(RegisterPublicKey),
+		Method:           http.MethodPost,
+		Path:             "/keys",
+		ResponseSettings: []server.ResponseSetting{},
+	},
+	server.Route{
+		Handler:          LoginWithPublicKey,
+		Method:           http.MethodPost,
+		Path:             "/keys/login",
+		ResponseSettings: []server.ResponseSetting{},
+	},
+	server.Route{
 		Handler:          middleware.Authorize(SetTotp),
 		Method:           http.MethodPost,
 		Path:             "/otp",

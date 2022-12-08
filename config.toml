@@ -3,6 +3,8 @@ port = 8080
 read_timeout = 30
 write_timeout = 30
 
-database_addr="mongodb://127.0.0.1:27017"
+database_path="postgresql://postgres@127.0.0.1:5432/auth"
+database_dialect="postgres"
+
 private_key="rsa2048.key"
 certificate="domain.crt"
