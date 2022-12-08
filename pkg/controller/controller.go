@@ -363,6 +363,7 @@ func (c *controller) SignUp(user models.User) (models.AccessToken, error) {
 	if err != nil {
 		return models.AccessToken{}, err
 	}
+	tkns.OtpRequired = enableTotp
 	_, err = c.SetTotp(user.UserId, models.Totp{Enabled: enableTotp})
 	return tkns, err
 }
